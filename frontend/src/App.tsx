@@ -103,20 +103,16 @@ const AdminRoute: React.FC<{
 }> = ({ children, authService }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log('AdminRoute - Checking authentication...');
-        console.log('AdminRoute - Token exists:', !!authService.getToken());
-        console.log('AdminRoute - isAuthenticated:', authService.isAuthenticated());
-        
         const user = await authService.getCurrentUser();
-        console.log('AdminRoute - Current user:', user);
         setCurrentUser(user);
       } catch (error) {
-        console.error('AdminRoute - Auth check failed:', error);
         setCurrentUser(null);
+        setError('You must be logged in as an admin to access this page. Please log in again.');
       } finally {
         setLoading(false);
       }
@@ -126,23 +122,29 @@ const AdminRoute: React.FC<{
   }, [authService]);
 
   if (loading) {
-    console.log('AdminRoute - Loading...');
     return <div>Loading...</div>;
   }
-  
-  // Check if user exists and is admin
-  console.log('AdminRoute - Checking user role:', currentUser?.role);
+
+  if (error) {
+    return (
+      <div style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
+        {error}
+      </div>
+    );
+  }
+
   if (!currentUser) {
-    console.log('AdminRoute - No user found, redirecting to login');
     return <Navigate to="/auth/login" replace />;
   }
-  
+
   if (currentUser.role !== 'admin') {
-    console.log('AdminRoute - User is not admin, redirecting to login');
-    return <Navigate to="/auth/login" replace />;
+    return (
+      <div style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
+        You do not have permission to access this page. Only admins are allowed.
+      </div>
+    );
   }
-  
-  console.log('AdminRoute - User is admin, rendering admin dashboard');
+
   return <>{children}</>;
 };
 
