@@ -6,6 +6,7 @@ import { authService } from '../../services/singletonAuthService';
 import { investmentService } from '../../services/singletonInvestmentService';
 import { transactionService } from '../../services/transactionService';
 import { User, Investment, Transaction } from '../../types';
+import { useNavigate } from 'react-router-dom';
 
 const AdminGrid = styled.div`
   display: grid;
@@ -186,6 +187,7 @@ const AdminDashboardPage: React.FC = () => {
     message: string;
     timestamp: Date;
   }>>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -872,7 +874,7 @@ const AdminDashboardPage: React.FC = () => {
           </StatLabel>
           <StatValue>{pendingWithdrawals.length}</StatValue>
         </StatCard>
-        <StatCard onClick={() => window.location.href = '/admin/mpesa-bot'}>
+        <StatCard onClick={() => navigate('/admin/mpesa-bot')}>
           <StatLabel>🤖 MPESA Bot</StatLabel>
           <StatValue>Manage</StatValue>
         </StatCard>
