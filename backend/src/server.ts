@@ -14,7 +14,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || '';
 
-app.use(cors());
+app.use(cors({
+  origin: ['https://camillo-frontend.onrender.com'], // Replace with your actual frontend URL
+  credentials: true,
+}));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);

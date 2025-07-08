@@ -62,6 +62,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, authService }) => {
                       Admin Dashboard
                     </Link>
                   )}
+                  {currentUser.role === 'admin' && (
+                    <Link to="/admin/mpesa-bot" className="mr-4 text-green-600 hover:text-green-800">
+                      MPESA Bot
+                    </Link>
+                  )}
                   <Link to="/investments" className="mr-4 text-blue-600 hover:text-blue-800">
                     My Investments
                   </Link>
