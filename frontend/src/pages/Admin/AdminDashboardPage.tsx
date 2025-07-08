@@ -454,9 +454,6 @@ const AdminDashboardPage: React.FC = () => {
       const transaction = await transactionService.approveWithdrawal(transactionId);
       // Remove the approved transaction from the list
       setPendingWithdrawals(prev => prev.filter(tx => tx._id !== transactionId));
-      // Refresh data to update stats
-      window.location.reload();
-      
       // Add notification
       addNotification('success', `Withdrawal of ${transaction.amount} KSH approved successfully!`);
     } catch (err) {

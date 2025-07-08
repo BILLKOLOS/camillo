@@ -271,18 +271,15 @@ const DashboardPage: React.FC = () => {
     checkAuth();
   }, []);
 
-  // Refresh balance periodically to stay in sync with admin updates
   useEffect(() => {
-    if (!currentUser) return;
-    
+    // Initial balance fetch
+    refreshBalance();
+    // Set up polling every 10 seconds
     const interval = setInterval(() => {
       refreshBalance();
-      loadTransactions(); // Also refresh transactions to get updated statuses
-      loadInvestments(); // Also refresh investments to get updated statuses
-    }, 30000); // Refresh every 30 seconds
-    
+    }, 10000);
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, []);
 
   // Auto-credit profit after 10 seconds for each active investment
   useEffect(() => {
