@@ -15,8 +15,15 @@ export class TransactionService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'API call failed');
+      let errorMsg = 'API call failed';
+      try {
+        const error = await response.json();
+        errorMsg = error.message || errorMsg;
+      } catch (e) {
+        // If response is not JSON (e.g., HTML error page)
+        errorMsg = `API call failed with status ${response.status}`;
+      }
+      throw new Error(errorMsg);
     }
 
     return response.json();
@@ -61,7 +68,7 @@ export class TransactionService {
 
   // Approve withdrawal transaction (admin only)
   async approveWithdrawal(transactionId: string): Promise<Transaction> {
-    const response = await this.apiCall(`/transactions/approve-withdrawal/${transactionId}`, {
+    const response = await this.apiCall(`/transactions/${transactionId}/approve`, {
       method: 'PATCH',
     });
     return response.data.transaction;
