@@ -7,6 +7,7 @@ import authRoutes from './routes/auth';
 import investmentRoutes from './routes/investments';
 import transactionRoutes from './routes/transactions';
 import tradeRoutes from './routes/trades';
+import manualDepositRoutes from './routes/manualDeposits';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/investments', investmentRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/trades', tradeRoutes);
+app.use('/api/manual-deposits', manualDepositRoutes);
 
 app.use(errorHandler);
 

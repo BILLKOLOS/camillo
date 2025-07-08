@@ -6,6 +6,7 @@ import { InvestmentService } from '../../services/investmentService';
 import { Investment, User } from '../../types';
 import { Container, Header, Title, Subtitle, Button } from '../../styles/components';
 import { theme, animations } from '../../styles/theme';
+import { manualDepositService } from '../../services/manualDepositService';
 
 // Styled components
 const InvestmentsGrid = styled.div`
@@ -147,6 +148,7 @@ export const Investments: React.FC<InvestmentsProps> = ({ authService, investmen
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
   const [showInvest, setShowInvest] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState('');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -189,8 +191,9 @@ export const Investments: React.FC<InvestmentsProps> = ({ authService, investmen
         return;
       }
 
-      const newInvestment = await investmentService.createInvestment(currentUser.id, investmentAmount);
-      setInvestments([...investments, newInvestment]);
+      // Instead of creating an investment, create a manual deposit request
+      await manualDepositService.createManualDepositRequest(investmentAmount);
+      setPendingMessage('Your deposit request has been submitted and is pending admin approval. You will see your balance updated once approved.');
       setAmount('');
       setError('');
       setShowInvest(false);
@@ -250,6 +253,7 @@ export const Investments: React.FC<InvestmentsProps> = ({ authService, investmen
             min={1000}
           />
           {error && <ErrorMessage>{error}</ErrorMessage>}
+          {pendingMessage && <div style={{ color: theme.colors.info, marginBottom: 10 }}>{pendingMessage}</div>}
           <div style={{ display: 'flex', gap: 10 }}>
             <Button type="submit">Confirm Investment</Button>
             <Button onClick={() => setShowInvest(false)} style={{ background: '#eee', color: '#333' }}>

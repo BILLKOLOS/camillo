@@ -7,6 +7,7 @@ import { investmentService } from '../../services/singletonInvestmentService';
 import { transactionService } from '../../services/transactionService';
 import { User, Investment, Transaction } from '../../types';
 import { useNavigate } from 'react-router-dom';
+import { manualDepositService } from '../../services/manualDepositService';
 
 const AdminGrid = styled.div`
   display: grid;
@@ -182,7 +183,7 @@ const UserValue = styled.span`
 
 const AdminDashboardPage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [selectedView, setSelectedView] = useState<'overview' | 'users' | 'investments' | 'transactions' | 'active' | 'pending-payments' | 'pending-withdrawals'>('overview');
+  const [selectedView, setSelectedView] = useState<'overview' | 'users' | 'investments' | 'transactions' | 'active' | 'pending-payments' | 'pending-withdrawals' | 'manual-deposits'>('overview');
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalInvestments: 0,
@@ -207,6 +208,9 @@ const AdminDashboardPage: React.FC = () => {
     message: string;
     timestamp: Date;
   }>>([]);
+  const [manualDeposits, setManualDeposits] = useState<any[]>([]);
+  const [manualDepositsLoading, setManualDepositsLoading] = useState(false);
+  const [manualDepositsError, setManualDepositsError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -308,6 +312,29 @@ const AdminDashboardPage: React.FC = () => {
     
     return () => clearInterval(interval);
   }, [user, stats.expiredInvestments, stats.pendingPayments]);
+
+  useEffect(() => {
+    if (!user) return; // Don't fetch data if no user
+    // Fetch manual deposit requests
+    const fetchManualDeposits = async () => {
+      setManualDepositsLoading(true);
+      setManualDepositsError('');
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/manual-deposits', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch manual deposits');
+        setManualDeposits(data.data.requests);
+      } catch (err) {
+        setManualDepositsError(err instanceof Error ? err.message : 'Failed to fetch manual deposits');
+      } finally {
+        setManualDepositsLoading(false);
+      }
+    };
+    fetchManualDeposits();
+  }, [user]);
 
   const handleSearchUsers = async () => {
     if (!searchPhone.trim()) {
@@ -460,6 +487,40 @@ const AdminDashboardPage: React.FC = () => {
       console.error('Error approving withdrawal:', err);
       setError(err instanceof Error ? err.message : 'Failed to approve withdrawal');
       addNotification('warning', 'Failed to approve withdrawal');
+    }
+  };
+
+  const handleApproveManualDeposit = async (requestId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/manual-deposits/${requestId}/approve`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to approve deposit');
+      setManualDeposits((prev) => prev.map((req) => req._id === requestId ? { ...req, status: 'approved' } : req));
+      addNotification('success', 'Deposit approved and user balance updated.');
+    } catch (err) {
+      setManualDepositsError(err instanceof Error ? err.message : 'Failed to approve deposit');
+      addNotification('warning', 'Failed to approve deposit');
+    }
+  };
+
+  const handleRejectManualDeposit = async (requestId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/manual-deposits/${requestId}/reject`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to reject deposit');
+      setManualDeposits((prev) => prev.map((req) => req._id === requestId ? { ...req, status: 'rejected' } : req));
+      addNotification('info', 'Deposit request rejected.');
+    } catch (err) {
+      setManualDepositsError(err instanceof Error ? err.message : 'Failed to reject deposit');
+      addNotification('warning', 'Failed to reject deposit');
     }
   };
 
@@ -795,6 +856,57 @@ const AdminDashboardPage: React.FC = () => {
           </DetailCard>
         );
 
+      case 'manual-deposits':
+        return (
+          <DetailCard>
+            <h2>Manual Deposit Requests</h2>
+            {manualDepositsLoading ? (
+              <div>Loading...</div>
+            ) : manualDepositsError ? (
+              <div style={{ color: 'red' }}>{manualDepositsError}</div>
+            ) : (
+              <Table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {manualDeposits.map((req) => (
+                    <tr key={req._id}>
+                      <td>{req.user?.name || 'Unknown'}</td>
+                      <td>{req.user?.phone || 'Unknown'}</td>
+                      <td>{formatMoney(req.amount)}</td>
+                      <td>
+                        <StatusBadge status={req.status}>{req.status}</StatusBadge>
+                      </td>
+                      <td>{formatDate(req.createdAt)}</td>
+                      <td>
+                        {req.status === 'pending' && (
+                          <>
+                            <Button style={{ background: theme.colors.success, marginRight: 8 }} onClick={() => handleApproveManualDeposit(req._id)}>
+                              Approve
+                            </Button>
+                            <Button style={{ background: theme.colors.error }} onClick={() => handleRejectManualDeposit(req._id)}>
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {req.status !== 'pending' && <span>-</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </DetailCard>
+        );
+
       default:
         return null;
     }
@@ -897,6 +1009,10 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </StatLabel>
           <StatValue>{pendingWithdrawals.length}</StatValue>
+        </StatCard>
+        <StatCard onClick={() => setSelectedView('manual-deposits')}>
+          <StatLabel>Manual Deposits</StatLabel>
+          <StatValue>{manualDeposits.filter((req) => req.status === 'pending').length}</StatValue>
         </StatCard>
         <StatCard onClick={() => navigate('/admin/mpesa-bot')}>
           <StatLabel>🤖 MPESA Bot</StatLabel>

@@ -18,6 +18,7 @@ export const theme = {
     error: '#e74c3c',
     success: '#27ae60',
     warning: '#f39c12',
+    info: '#2980b9',
   },
   shadows: {
     light: '0 8px 32px rgba(0, 0, 0, 0.1)',
