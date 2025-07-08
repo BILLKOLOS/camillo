@@ -28,16 +28,14 @@ const AdminCard = styled.div`
 `;
 
 const UserCard = styled.div`
-  background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(20px);
-  border-radius: ${theme.borderRadius};
-  padding: 20px;
-  margin-bottom: 15px;
-  transition: ${theme.transition};
-
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+  padding: 24px 20px;
+  margin-bottom: 24px;
+  transition: box-shadow 0.2s;
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${theme.shadows.medium};
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
   }
 `;
 
@@ -92,11 +90,11 @@ const UserInfo = styled.div`
 
 const UserLabel = styled.span`
   font-weight: 600;
-  color: #333;
+  color: #888;
 `;
 
 const UserValue = styled.span`
-  color: #666;
+  color: #222;
 `;
 
 const MPESABotAdminPage: React.FC = () => {
@@ -199,7 +197,7 @@ const MPESABotAdminPage: React.FC = () => {
             />
             <Input
               type="text"
-              placeholder="Sender Phone (e.g., 0722233390)"
+              placeholder="Search by phone number"
               value={simulationForm.senderPhone}
               onChange={(e) => setSimulationForm({ ...simulationForm, senderPhone: e.target.value })}
             />
@@ -259,7 +257,7 @@ const MPESABotAdminPage: React.FC = () => {
                   <UserLabel>Email:</UserLabel>
                   <UserValue>{user.email}</UserValue>
                   <UserLabel>Balance:</UserLabel>
-                  <UserValue style={{ color: '#2ecc71', fontWeight: 600 }}>{user.balance} KSH</UserValue>
+                  <UserValue style={{ color: '#27ae60', fontWeight: 700 }}>{user.balance} KSH</UserValue>
                   <UserLabel>Role:</UserLabel>
                   <UserValue>{user.role}</UserValue>
                 </UserInfo>

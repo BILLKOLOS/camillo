@@ -113,13 +113,19 @@ class MPESABotService {
    */
   async updateUserBalance(userId: string, balance: number): Promise<User> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/investments/user/${userId}/balance`, {
+      const response = await fetch(`${API_BASE_URL}/investments/user/${userId}/balance`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ balance }),
       });
+
+      // Check for non-JSON response (e.g., HTML error page)
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned non-JSON response');
+      }
 
       const data = await response.json();
 

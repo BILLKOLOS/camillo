@@ -160,6 +160,26 @@ const StatusBadge = styled.span<{ status: string }>`
   color: white;
 `;
 
+// Add styled UserCard for admin dashboard
+const UserCard = styled.div`
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+  padding: 24px 20px;
+  margin-bottom: 24px;
+  transition: box-shadow 0.2s;
+  &:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+`;
+const UserLabel = styled.span`
+  font-weight: 600;
+  color: #888;
+`;
+const UserValue = styled.span`
+  color: #222;
+`;
+
 const AdminDashboardPage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [selectedView, setSelectedView] = useState<'overview' | 'users' | 'investments' | 'transactions' | 'active' | 'pending-payments' | 'pending-withdrawals'>('overview');
@@ -465,7 +485,7 @@ const AdminDashboardPage: React.FC = () => {
                 type="text"
                 value={searchPhone}
                 onChange={(e) => setSearchPhone(e.target.value)}
-                placeholder="Search by phone number..."
+                placeholder="Search by phone number"
               />
               <Button onClick={handleSearchUsers}>Search</Button>
             </SearchContainer>
