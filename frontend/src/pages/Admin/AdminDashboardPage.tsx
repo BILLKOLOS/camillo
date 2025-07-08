@@ -453,7 +453,7 @@ const AdminDashboardPage: React.FC = () => {
       
       const transaction = await transactionService.approveWithdrawal(transactionId);
       // Remove the approved transaction from the list
-      setPendingWithdrawals(prev => prev.filter(tx => tx.id !== transactionId));
+      setPendingWithdrawals(prev => prev.filter(tx => tx._id !== transactionId));
       // Refresh data to update stats
       window.location.reload();
       
@@ -680,7 +680,7 @@ const AdminDashboardPage: React.FC = () => {
               </thead>
               <tbody>
                 {pendingWithdrawals.map(transaction => {
-                  if (!transaction.id) {
+                  if (!transaction._id) {
                     console.error('Transaction missing ID:', transaction);
                     return null; // Skip rendering this transaction
                   }
@@ -697,14 +697,14 @@ const AdminDashboardPage: React.FC = () => {
                     userPhone = transaction.userId.phone || 'Unknown';
                   }
                   return (
-                    <tr key={transaction.id}>
+                    <tr key={transaction._id}>
                       <td>{userName || 'Unknown'}</td>
                       <td>{userPhone || 'Unknown'}</td>
                       <td>{formatMoney(transaction.amount)}</td>
                       <td>{formatDate(transaction.createdAt)}</td>
                       <td>
                         <Button 
-                          onClick={() => handleApproveWithdrawal(transaction.id)}
+                          onClick={() => handleApproveWithdrawal(transaction._id)}
                           style={{ background: theme.colors.success }}
                         >
                           Approve Withdrawal
