@@ -25,6 +25,7 @@ export interface Investment {
 
 export interface Transaction {
   id: string;
+  _id?: string; // MongoDB ID, optional for compatibility
   userId: string | { name: string; phone: string };
   type: 'deposit' | 'withdrawal' | 'profit';
   amount: number;

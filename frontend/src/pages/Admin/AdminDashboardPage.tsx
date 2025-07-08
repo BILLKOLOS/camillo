@@ -704,7 +704,7 @@ const AdminDashboardPage: React.FC = () => {
                       <td>{formatDate(transaction.createdAt)}</td>
                       <td>
                         <Button 
-                          onClick={() => handleApproveWithdrawal(transaction._id)}
+                          onClick={() => handleApproveWithdrawal(transaction._id!)}
                           style={{ background: theme.colors.success }}
                         >
                           Approve Withdrawal
