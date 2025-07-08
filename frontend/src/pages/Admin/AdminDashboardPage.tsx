@@ -684,21 +684,22 @@ const AdminDashboardPage: React.FC = () => {
                     console.error('Transaction missing ID:', transaction);
                     return null; // Skip rendering this transaction
                   }
-                  // Robustly find the user: by id if string, else by name and phone if object
+                  // Try to find user by ID
                   let user: User | undefined;
                   if (typeof transaction.userId === 'string') {
                     user = users.find(u => u.id === transaction.userId);
-                  } else if (transaction.userId && typeof transaction.userId === 'object') {
-                    user = users.find(u =>
-                      typeof transaction.userId === 'object' &&
-                      u.name === transaction.userId.name &&
-                      u.phone === transaction.userId.phone
-                    );
+                  }
+                  // Fallback: if transaction.userId is an object, use its fields directly
+                  let userName = user?.name;
+                  let userPhone = user?.phone;
+                  if (!user && typeof transaction.userId === 'object' && transaction.userId) {
+                    userName = transaction.userId.name || 'Unknown';
+                    userPhone = transaction.userId.phone || 'Unknown';
                   }
                   return (
                     <tr key={transaction.id}>
-                      <td>{user ? user.name : 'Unknown'}</td>
-                      <td>{user ? user.phone : 'Unknown'}</td>
+                      <td>{userName || 'Unknown'}</td>
+                      <td>{userPhone || 'Unknown'}</td>
                       <td>{formatMoney(transaction.amount)}</td>
                       <td>{formatDate(transaction.createdAt)}</td>
                       <td>
