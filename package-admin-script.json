@@ -1,0 +1,13 @@
+{
+  "name": "admin-user-creator",
+  "version": "1.0.0",
+  "description": "Script to create admin user for Camillo Investments",
+  "main": "create-admin-user.js",
+  "scripts": {
+    "create-admin": "node create-admin-user.js"
+  },
+  "dependencies": {
+    "mongoose": "^7.0.0",
+    "bcryptjs": "^2.4.3"
+  }
+} 

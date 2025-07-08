@@ -1,0 +1,236 @@
+import { Request, Response } from 'express';
+import Investment from '../models/Investment';
+import User from '../models/User';
+
+export const createInvestment = async (req: any, res: Response) => {
+  try {
+    const { amount } = req.body;
+    const userId = req.user.id;
+    const investment = await Investment.create({ userId, amount, status: 'active', paymentStatus: 'paid', profitAmount: Math.round(amount * 0.6), tradingPeriod: 24 });
+    await User.findByIdAndUpdate(userId, { $inc: { balance: -amount } });
+    res.status(201).json({ data: { investment } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to create investment' });
+  }
+};
+
+export const getClientInvestments = async (req: any, res: Response) => {
+  try {
+    const userId = req.user.id;
+    const investments = await Investment.find({ userId });
+    res.json({ data: { investments } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get investments' });
+  }
+};
+
+export const getAllInvestments = async (req: Request, res: Response) => {
+  try {
+    const investments = await Investment.find();
+    res.json({ data: { investments } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get all investments' });
+  }
+};
+
+export const getInvestmentsByPhone = async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.params;
+    const user = await User.findOne({ phone });
+    if (!user) return res.json({ data: { investments: [] } });
+    const investments = await Investment.find({ userId: user._id });
+    res.json({ data: { investments } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get investments by phone' });
+  }
+};
+
+export const getCompletedPendingPayments = async (req: Request, res: Response) => {
+  try {
+    const investments = await Investment.find({ status: 'completed', paymentStatus: 'pending' });
+    res.json({ data: { investments } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get completed pending payments' });
+  }
+};
+
+export const getExpiredInvestments = async (req: Request, res: Response) => {
+  try {
+    const now = new Date();
+    const investments = await Investment.find({ expiryDate: { $lte: now }, status: 'active' });
+    res.json({ data: { investments } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get expired investments' });
+  }
+};
+
+export const completeExpiredInvestments = async (req: Request, res: Response) => {
+  try {
+    const now = new Date();
+    const expired = await Investment.updateMany({ expiryDate: { $lte: now }, status: 'active' }, { status: 'completed' });
+    res.json({ data: expired });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to complete expired investments' });
+  }
+};
+
+export const approvePayment = async (req: Request, res: Response) => {
+  try {
+    const { investmentId } = req.params;
+    const investment = await Investment.findByIdAndUpdate(investmentId, { paymentStatus: 'paid', paymentApprovedAt: new Date() }, { new: true });
+    res.json({ data: { investment } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to approve payment' });
+  }
+};
+
+export const updateUserBalance = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { balance } = req.body;
+    
+    // Get the user to calculate the amount being added
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const amountAdded = balance - user.balance;
+    
+    // Update user balance
+    const updatedUser = await User.findByIdAndUpdate(userId, { balance }, { new: true });
+    
+    // If amount is being added (positive), create an investment automatically
+    if (amountAdded > 0) {
+      const profitAmount = Math.round(amountAdded * 0.6); // 60% profit
+      const expiryDate = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+      
+      const investment = await Investment.create({
+        userId,
+        amount: amountAdded,
+        status: 'active',
+        paymentStatus: 'pending', // Will be marked as paid when admin approves
+        profitAmount,
+        tradingPeriod: 1, // 1 hour
+        expiryDate,
+        createdAt: new Date(),
+      });
+      
+      // Schedule profit completion after 1 hour
+      setTimeout(async () => {
+        try {
+          // Complete the investment and credit profit
+          await Investment.findByIdAndUpdate(investment._id, { 
+            status: 'completed',
+            profitPaidAt: new Date()
+          });
+          
+          // Create profit transaction
+          const Transaction = require('../models/Transaction');
+          await Transaction.create({
+            userId,
+            type: 'profit',
+            amount: amountAdded + profitAmount, // Principal + profit
+            status: 'completed',
+            userName: user.name,
+            userPhone: user.phone
+          });
+          
+          // Update user balance with profit
+          await User.findByIdAndUpdate(userId, { 
+            $inc: { balance: profitAmount }
+          });
+          
+          console.log(`Investment completed for user ${user.name}: ${amountAdded} + ${profitAmount} profit`);
+        } catch (error) {
+          console.error('Error completing investment:', error);
+        }
+      }, 60 * 60 * 1000); // 1 hour
+      
+      res.json({ 
+        data: { 
+          user: updatedUser,
+          investment,
+          message: `Balance updated and investment created. ${profitAmount} KSH profit will be credited in 1 hour.`
+        } 
+      });
+    } else {
+      res.json({ data: { user: updatedUser } });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to update user balance' });
+  }
+};
+
+export const searchUsersByPhone = async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.params;
+    const users = await User.find({ phone: { $regex: phone, $options: 'i' } });
+    res.json({ data: { users } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to search users by phone' });
+  }
+};
+
+export const updateInvestmentStatus = async (req: Request, res: Response) => {
+  try {
+    const { investmentId } = req.params;
+    const { status } = req.body;
+    const investment = await Investment.findByIdAndUpdate(investmentId, { status }, { new: true });
+    res.json({ data: { investment } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to update investment status' });
+  }
+};
+
+export const getInvestmentStats = async (req: Request, res: Response) => {
+  try {
+    const totalInvestments = await Investment.countDocuments();
+    const activeInvestments = await Investment.countDocuments({ status: 'active' });
+    const totalProfit = await Investment.aggregate([{ $group: { _id: null, total: { $sum: '$profitAmount' } } }]);
+    const pendingPayments = await Investment.countDocuments({ paymentStatus: 'pending' });
+    const expiredInvestments = await Investment.countDocuments({ expiryDate: { $lte: new Date() }, status: 'active' });
+    res.json({ data: { stats: {
+      totalInvestments,
+      activeInvestments,
+      totalProfit: totalProfit[0]?.total || 0,
+      pendingPayments,
+      expiredInvestments
+    } } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get investment stats' });
+  }
+};
+
+export const getAdminNotifications = async (req: Request, res: Response) => {
+  try {
+    // Get completed investments with pending payments
+    const pendingPayments = await Investment.find({ 
+      status: 'completed', 
+      paymentStatus: 'pending' 
+    }).populate('userId', 'name phone');
+    
+    // Get recent profit transactions (last 24 hours)
+    const Transaction = require('../models/Transaction');
+    const recentProfits = await Transaction.find({
+      type: 'profit',
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    }).populate('userId', 'name phone');
+    
+    // Get pending withdrawal requests
+    const pendingWithdrawals = await Transaction.find({
+      type: 'withdrawal',
+      status: 'pending'
+    }).populate('userId', 'name phone');
+    
+    res.json({ 
+      data: { 
+        pendingPayments,
+        recentProfits,
+        pendingWithdrawals
+      } 
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get admin notifications' });
+  }
+}; 
