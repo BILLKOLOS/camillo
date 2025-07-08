@@ -20,4 +20,15 @@ const UserSchema = new Schema<IUser>({
   password: { type: String, required: true },
 });
 
+// Add toJSON transformation to map _id to id and remove sensitive fields
+UserSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.password;
+  }
+});
+
 export default mongoose.model<IUser>('User', UserSchema); 
