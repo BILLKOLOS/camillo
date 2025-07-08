@@ -66,6 +66,40 @@ const Table = styled.table`
   td {
     color: ${theme.colors.textSecondary};
   }
+  @media (max-width: 600px) {
+    display: block;
+    thead {
+      display: none;
+    }
+    tbody {
+      display: block;
+      width: 100%;
+    }
+    tr {
+      display: block;
+      margin-bottom: 1.5em;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      padding: 10px;
+    }
+    td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border: none;
+      border-bottom: 1px solid #f0f0f0;
+      position: relative;
+    }
+    td:before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: ${theme.colors.textPrimary};
+      flex-basis: 50%;
+      text-align: left;
+    }
+  }
 `;
 
 const ActionButton = styled(Button)`
@@ -450,10 +484,10 @@ const AdminDashboardPage: React.FC = () => {
                   <tbody>
                     {searchResults.map(user => (
                       <tr key={user.id}>
-                        <td>{user.name}</td>
-                        <td>{user.email}</td>
-                        <td>{user.phone}</td>
-                        <td>{formatMoney(user.balance)}</td>
+                        <td data-label="Name">{user.name}</td>
+                        <td data-label="Email">{user.email}</td>
+                        <td data-label="Phone">{user.phone}</td>
+                        <td data-label="Balance">{formatMoney(user.balance)}</td>
                         <td>
                           <Input
                             type="number"
@@ -487,12 +521,12 @@ const AdminDashboardPage: React.FC = () => {
               <tbody>
                 {users.map(user => (
                   <tr key={user.id}>
-                    <td>{user.name}</td>
-                    <td>{user.email}</td>
-                    <td>{user.phone}</td>
-                    <td>{user.role}</td>
-                    <td>{formatMoney(user.balance)}</td>
-                    <td>{formatDate(user.createdAt)}</td>
+                    <td data-label="Name">{user.name}</td>
+                    <td data-label="Email">{user.email}</td>
+                    <td data-label="Phone">{user.phone}</td>
+                    <td data-label="Role">{user.role}</td>
+                    <td data-label="Balance">{formatMoney(user.balance)}</td>
+                    <td data-label="Joined">{formatDate(user.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
