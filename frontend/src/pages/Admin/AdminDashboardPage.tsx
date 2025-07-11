@@ -3,9 +3,10 @@ import styled from 'styled-components';
 import { Container, Header, Title, Subtitle, Button } from '../../styles/components';
 import { theme } from '../../styles/theme';
 import { authService } from '../../services/singletonAuthService';
-import { investmentService } from '../../services/singletonInvestmentService';
+import { investmentService } from '../../services/investmentService';
 import { transactionService } from '../../services/transactionService';
 import { User, Investment, Transaction } from '../../types';
+import { API_BASE_URL } from '../../services/config';
 import { useNavigate } from 'react-router-dom';
 import { manualDepositService } from '../../services/manualDepositService';
 
@@ -330,7 +331,7 @@ const AdminDashboardPage: React.FC = () => {
       setManualDepositsError('');
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/manual-deposits', {
+        const response = await fetch(`${API_BASE_URL}/manual-deposits`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -583,7 +584,7 @@ const AdminDashboardPage: React.FC = () => {
   const handleApproveManualDeposit = async (requestId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/manual-deposits/${requestId}/approve`, {
+      const response = await fetch(`${API_BASE_URL}/manual-deposits/${requestId}/approve`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -600,7 +601,7 @@ const AdminDashboardPage: React.FC = () => {
   const handleRejectManualDeposit = async (requestId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/manual-deposits/${requestId}/reject`, {
+      const response = await fetch(`${API_BASE_URL}/manual-deposits/${requestId}/reject`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
