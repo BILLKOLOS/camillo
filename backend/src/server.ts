@@ -8,6 +8,7 @@ import investmentRoutes from './routes/investments';
 import transactionRoutes from './routes/transactions';
 import tradeRoutes from './routes/trades';
 import manualDepositRoutes from './routes/manualDeposits';
+import Investment from './models/Investment';
 
 dotenv.config();
 
@@ -57,6 +58,32 @@ app.use('/api/investments', investmentRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/trades', tradeRoutes);
 app.use('/api/manual-deposits', manualDepositRoutes);
+
+// Scheduled task to complete expired investments
+const completeExpiredInvestments = async () => {
+  try {
+    const now = new Date();
+    const result = await Investment.updateMany(
+      { expiryDate: { $lte: now }, status: 'active' },
+      { 
+        status: 'completed',
+        withdrawalStatus: 'pending'
+      }
+    );
+    
+    if (result.modifiedCount > 0) {
+      console.log(`Completed ${result.modifiedCount} expired investments`);
+    }
+  } catch (error) {
+    console.error('Error completing expired investments:', error);
+  }
+};
+
+// Run the task every 5 minutes
+setInterval(completeExpiredInvestments, 5 * 60 * 1000);
+
+// Also run it once on startup
+completeExpiredInvestments();
 
 app.use(errorHandler);
 

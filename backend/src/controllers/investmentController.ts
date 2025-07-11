@@ -13,6 +13,9 @@ export const createInvestment = async (req: any, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
+    // Calculate expiry date (24 hours from now)
+    const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    
     const investment = await Investment.create({ 
       userId, 
       amount, 
@@ -20,6 +23,7 @@ export const createInvestment = async (req: any, res: Response) => {
       paymentStatus: 'paid', 
       profitAmount: Math.round(amount * 0.6), 
       tradingPeriod: 24,
+      expiryDate,
       userName: user.name,
       userPhone: user.phone
     });

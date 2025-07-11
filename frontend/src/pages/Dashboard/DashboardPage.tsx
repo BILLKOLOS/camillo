@@ -431,43 +431,49 @@ const DashboardPage: React.FC = () => {
     }
     
     setDepositError('');
-    setDepositSuccess('Processing deposit...');
+    setDepositSuccess('Processing deposit request...');
     
     try {
-      // Call backend API to process deposit
-      const transaction = await transactionService.createTransaction('deposit', amt);
+      // Create manual deposit request instead of direct transaction
+      const response = await fetch(`${API_BASE_URL}/manual-deposits`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ amount: amt }),
+      });
       
-      // Update local balance immediately for better UX
-      setBalance(balance + amt);
-      setDepositSuccess(`Successfully deposited ${amt} KSH!`);
+      if (!response.ok) {
+        throw new Error('Failed to create deposit request');
+      }
       
-      // Add transaction to local list
+      const data = await response.json();
+      
+      setDepositSuccess(`Deposit request of ${amt} KSH submitted successfully! Please wait for admin approval.`);
+      
+      // Add transaction to local list with pending status
       setTransactions([
         {
-          id: transaction.id,
+          id: data.data.requestId || Math.random().toString(36).substr(2, 9),
           type: 'deposit',
           amount: amt,
-          date: new Date(transaction.createdAt),
-          status: transaction.status,
+          date: new Date(),
+          status: 'pending',
         },
         ...transactions,
       ]);
       
       setDepositAmount('');
       
-      // Refresh balance from backend to ensure consistency
-      setTimeout(() => {
-        refreshBalance();
-      }, 1000);
-      
       setTimeout(() => {
         setShowDeposit(false);
         setDepositSuccess('');
-      }, 1200);
+      }, 3000);
       
     } catch (error: any) {
-      console.error('Deposit failed:', error);
-      setDepositError(error.message || 'Deposit failed. Please try again.');
+      console.error('Deposit request failed:', error);
+      setDepositError(error.message || 'Deposit request failed. Please try again.');
       setDepositSuccess('');
     }
   };
@@ -636,7 +642,7 @@ const DashboardPage: React.FC = () => {
                 marginTop: '16px',
                 borderLeft: '4px solid #4CAF50'
               }}>
-                <strong>🤖 Automated System:</strong> Our MPESA bot will automatically detect your payment and update your balance within seconds!
+                <strong>📋 Manual Approval:</strong> After sending payment, submit your deposit request below. Admin will verify and approve within minutes!
               </div>
               <div style={{
                 background: 'rgba(255,255,255,0.15)',
@@ -645,7 +651,7 @@ const DashboardPage: React.FC = () => {
                 marginTop: '12px',
                 borderLeft: '4px solid #FF9800'
               }}>
-                <strong>💡 Auto-Investment:</strong> Your deposits automatically become investments with 60% profit after 24 hours!
+                <strong>💡 Investment Ready:</strong> Once approved, you can immediately invest your balance with 60% profit after 24 hours!
               </div>
             </div>
           </div>

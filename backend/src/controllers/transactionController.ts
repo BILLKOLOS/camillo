@@ -1,16 +1,55 @@
 import { Request, Response } from 'express';
 import Transaction from '../models/Transaction';
 import User from '../models/User';
+import ManualDepositRequest from '../models/ManualDepositRequest';
 
 export const createTransaction = async (req: any, res: Response) => {
   try {
     const { type, amount, mpesaTransactionId } = req.body;
     const userId = req.user.id;
+    
+    if (type === 'deposit') {
+      // Instead of directly updating balance, create a manual deposit request
+      const request = await ManualDepositRequest.create({ 
+        user: userId, 
+        amount, 
+        status: 'pending' 
+      });
+      
+      // Create a transaction record for tracking
+      const transaction = await Transaction.create({ 
+        userId, 
+        type, 
+        amount, 
+        status: 'pending', 
+        userName: req.user.name, 
+        userPhone: req.user.phone 
+      });
+      
+      return res.status(201).json({ 
+        data: { 
+          transaction,
+          message: 'Deposit request submitted successfully. Please wait for admin approval.',
+          requestId: request._id
+        } 
+      });
+    }
+    
+    // For other transaction types, proceed as before
     let status: 'pending' | 'completed' | 'failed' = 'completed';
     if (type === 'withdrawal') status = 'pending';
-    const transaction = await Transaction.create({ userId, type, amount, status, userName: req.user.name, userPhone: req.user.phone });
-    if (type === 'deposit') await User.findByIdAndUpdate(userId, { $inc: { balance: amount } });
+    
+    const transaction = await Transaction.create({ 
+      userId, 
+      type, 
+      amount, 
+      status, 
+      userName: req.user.name, 
+      userPhone: req.user.phone 
+    });
+    
     if (type === 'profit') await User.findByIdAndUpdate(userId, { $inc: { balance: amount } });
+    
     res.status(201).json({ data: { transaction } });
   } catch (err) {
     res.status(500).json({ message: 'Failed to create transaction' });
