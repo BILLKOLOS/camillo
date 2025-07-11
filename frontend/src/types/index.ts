@@ -11,7 +11,8 @@ export interface User {
 
 export interface Investment {
   id: string;
-  userId: string;
+  _id?: string; // MongoDB ID, optional for compatibility
+  userId: string; // Keep as string to match backend model
   amount: number;
   status: 'pending' | 'active' | 'completed' | 'trading';
   paymentStatus: 'pending' | 'paid';
@@ -21,12 +22,17 @@ export interface Investment {
   createdAt: Date;
   profitPaidAt?: Date;
   paymentApprovedAt?: Date;
+  // Additional fields for better tracking
+  userName?: string;
+  userPhone?: string;
+  withdrawalStatus?: 'pending' | 'paid';
+  withdrawalApprovedAt?: Date;
 }
 
 export interface Transaction {
   id: string;
   _id?: string; // MongoDB ID, optional for compatibility
-  userId: string | { name: string; phone: string };
+  userId: string; // Keep as string to match backend model
   type: 'deposit' | 'withdrawal' | 'profit';
   amount: number;
   status: 'pending' | 'completed' | 'failed';

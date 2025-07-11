@@ -6,7 +6,24 @@ export const createInvestment = async (req: any, res: Response) => {
   try {
     const { amount } = req.body;
     const userId = req.user.id;
-    const investment = await Investment.create({ userId, amount, status: 'active', paymentStatus: 'paid', profitAmount: Math.round(amount * 0.6), tradingPeriod: 24 });
+    
+    // Get user details for tracking
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const investment = await Investment.create({ 
+      userId, 
+      amount, 
+      status: 'active', 
+      paymentStatus: 'paid', 
+      profitAmount: Math.round(amount * 0.6), 
+      tradingPeriod: 24,
+      userName: user.name,
+      userPhone: user.phone
+    });
+    
     await User.findByIdAndUpdate(userId, { $inc: { balance: -amount } });
     res.status(201).json({ data: { investment } });
   } catch (err) {
@@ -67,7 +84,13 @@ export const getExpiredInvestments = async (req: Request, res: Response) => {
 export const completeExpiredInvestments = async (req: Request, res: Response) => {
   try {
     const now = new Date();
-    const expired = await Investment.updateMany({ expiryDate: { $lte: now }, status: 'active' }, { status: 'completed' });
+    const expired = await Investment.updateMany(
+      { expiryDate: { $lte: now }, status: 'active' }, 
+      { 
+        status: 'completed',
+        withdrawalStatus: 'pending' // Automatically mark as pending withdrawal
+      }
+    );
     res.json({ data: expired });
   } catch (err) {
     res.status(500).json({ message: 'Failed to complete expired investments' });
@@ -232,5 +255,71 @@ export const getAdminNotifications = async (req: Request, res: Response) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Failed to get admin notifications' });
+  }
+}; 
+
+// New endpoint for getting user deposits (manual deposit requests)
+export const getUserDeposits = async (req: Request, res: Response) => {
+  try {
+    const ManualDepositRequest = require('../models/ManualDepositRequest');
+    const deposits = await ManualDepositRequest.find({ status: 'pending' })
+      .populate('user', 'name phone email')
+      .sort({ createdAt: -1 });
+    
+    res.json({ data: { deposits } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get user deposits' });
+  }
+};
+
+// New endpoint for getting total investments (active investments)
+export const getTotalInvestments = async (req: Request, res: Response) => {
+  try {
+    const investments = await Investment.find({ status: 'active' })
+      .populate('userId', 'name phone')
+      .sort({ createdAt: -1 });
+    
+    res.json({ data: { investments } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get total investments' });
+  }
+};
+
+// New endpoint for getting pending withdrawals (completed investments with pending withdrawal status)
+export const getPendingWithdrawals = async (req: Request, res: Response) => {
+  try {
+    const investments = await Investment.find({ 
+      status: 'completed', 
+      withdrawalStatus: 'pending' 
+    })
+      .populate('userId', 'name phone')
+      .sort({ createdAt: -1 });
+    
+    res.json({ data: { investments } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get pending withdrawals' });
+  }
+};
+
+// New endpoint to approve withdrawal (mark completed investment as paid)
+export const approveWithdrawal = async (req: Request, res: Response) => {
+  try {
+    const { investmentId } = req.params;
+    const investment = await Investment.findByIdAndUpdate(
+      investmentId, 
+      { 
+        withdrawalStatus: 'paid', 
+        withdrawalApprovedAt: new Date() 
+      }, 
+      { new: true }
+    );
+    
+    if (!investment) {
+      return res.status(404).json({ message: 'Investment not found' });
+    }
+    
+    res.json({ data: { investment } });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to approve withdrawal' });
   }
 }; 

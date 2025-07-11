@@ -12,7 +12,11 @@ import {
   searchUsersByPhone,
   updateInvestmentStatus,
   getInvestmentStats,
-  getAdminNotifications
+  getAdminNotifications,
+  getUserDeposits,
+  getTotalInvestments,
+  getPendingWithdrawals,
+  approveWithdrawal
 } from '../controllers/investmentController';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -34,5 +38,11 @@ router.get('/search-users/:phone', authenticate, authorize('admin'), searchUsers
 router.patch('/:investmentId/status', authenticate, authorize('admin'), updateInvestmentStatus);
 router.get('/stats', authenticate, authorize('admin'), getInvestmentStats);
 router.get('/admin/notifications', authenticate, authorize('admin'), getAdminNotifications);
+
+// New routes for the three major transaction types
+router.get('/admin/user-deposits', authenticate, authorize('admin'), getUserDeposits);
+router.get('/admin/total-investments', authenticate, authorize('admin'), getTotalInvestments);
+router.get('/admin/pending-withdrawals', authenticate, authorize('admin'), getPendingWithdrawals);
+router.patch('/admin/:investmentId/approve-withdrawal', authenticate, authorize('admin'), approveWithdrawal);
 
 export default router; 

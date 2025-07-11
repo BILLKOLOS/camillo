@@ -183,7 +183,7 @@ const UserValue = styled.span`
 
 const AdminDashboardPage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [selectedView, setSelectedView] = useState<'overview' | 'users' | 'investments' | 'transactions' | 'active' | 'pending-payments' | 'pending-withdrawals' | 'manual-deposits'>('overview');
+  const [selectedView, setSelectedView] = useState<'overview' | 'users' | 'investments' | 'transactions' | 'active' | 'pending-payments' | 'pending-withdrawals' | 'manual-deposits' | 'user-deposits' | 'total-investments'>('overview');
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalInvestments: 0,
@@ -211,6 +211,15 @@ const AdminDashboardPage: React.FC = () => {
   const [manualDeposits, setManualDeposits] = useState<any[]>([]);
   const [manualDepositsLoading, setManualDepositsLoading] = useState(false);
   const [manualDepositsError, setManualDepositsError] = useState('');
+  
+  // New state for the three major transaction types
+  const [userDeposits, setUserDeposits] = useState<any[]>([]);
+  const [totalInvestments, setTotalInvestments] = useState<Investment[]>([]);
+  const [pendingWithdrawalsInvestments, setPendingWithdrawalsInvestments] = useState<Investment[]>([]);
+  const [loadingUserDeposits, setLoadingUserDeposits] = useState(false);
+  const [loadingTotalInvestments, setLoadingTotalInvestments] = useState(false);
+  const [loadingPendingWithdrawals, setLoadingPendingWithdrawals] = useState(false);
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -335,6 +344,66 @@ const AdminDashboardPage: React.FC = () => {
     };
     fetchManualDeposits();
   }, [user]);
+
+  // New useEffect for fetching user deposits
+  useEffect(() => {
+    if (!user || selectedView !== 'user-deposits') return;
+    
+    const fetchUserDeposits = async () => {
+      setLoadingUserDeposits(true);
+      try {
+        const deposits = await investmentService.getUserDeposits();
+        setUserDeposits(deposits);
+      } catch (err) {
+        console.error('Failed to fetch user deposits:', err);
+        addNotification('warning', 'Failed to fetch user deposits');
+      } finally {
+        setLoadingUserDeposits(false);
+      }
+    };
+    
+    fetchUserDeposits();
+  }, [user, selectedView]);
+
+  // New useEffect for fetching total investments
+  useEffect(() => {
+    if (!user || selectedView !== 'total-investments') return;
+    
+    const fetchTotalInvestments = async () => {
+      setLoadingTotalInvestments(true);
+      try {
+        const investments = await investmentService.getTotalInvestments();
+        setTotalInvestments(investments);
+      } catch (err) {
+        console.error('Failed to fetch total investments:', err);
+        addNotification('warning', 'Failed to fetch total investments');
+      } finally {
+        setLoadingTotalInvestments(false);
+      }
+    };
+    
+    fetchTotalInvestments();
+  }, [user, selectedView]);
+
+  // New useEffect for fetching pending withdrawals
+  useEffect(() => {
+    if (!user || selectedView !== 'pending-withdrawals') return;
+    
+    const fetchPendingWithdrawals = async () => {
+      setLoadingPendingWithdrawals(true);
+      try {
+        const withdrawals = await investmentService.getPendingWithdrawals();
+        setPendingWithdrawalsInvestments(withdrawals);
+      } catch (err) {
+        console.error('Failed to fetch pending withdrawals:', err);
+        addNotification('warning', 'Failed to fetch pending withdrawals');
+      } finally {
+        setLoadingPendingWithdrawals(false);
+      }
+    };
+    
+    fetchPendingWithdrawals();
+  }, [user, selectedView]);
 
   const handleSearchUsers = async () => {
     if (!searchPhone.trim()) {
@@ -490,6 +559,27 @@ const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  // New handler for approving investment withdrawals
+  const handleApproveInvestmentWithdrawal = async (investmentId: string) => {
+    try {
+      await investmentService.approveWithdrawal(investmentId);
+      
+      // Remove the approved investment from the list
+      setPendingWithdrawalsInvestments(prev => prev.filter(inv => inv.id !== investmentId && inv._id !== investmentId));
+      
+      // Add notification
+      addNotification('success', `Investment withdrawal approved successfully!`);
+      
+      // Refresh the pending withdrawals list
+      const withdrawals = await investmentService.getPendingWithdrawals();
+      setPendingWithdrawalsInvestments(withdrawals);
+    } catch (err) {
+      console.error('Error approving investment withdrawal:', err);
+      setError(err instanceof Error ? err.message : 'Failed to approve investment withdrawal');
+      addNotification('warning', 'Failed to approve investment withdrawal');
+    }
+  };
+
   const handleApproveManualDeposit = async (requestId: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -499,7 +589,7 @@ const AdminDashboardPage: React.FC = () => {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Failed to approve deposit');
-      setManualDeposits((prev) => prev.map((req) => req._id === requestId ? { ...req, status: 'approved' } : req));
+      setManualDeposits((prev) => prev.map((req) => (req._id === requestId || req.id === requestId) ? { ...req, status: 'approved' } : req));
       addNotification('success', 'Deposit approved and user balance updated.');
     } catch (err) {
       setManualDepositsError(err instanceof Error ? err.message : 'Failed to approve deposit');
@@ -516,7 +606,7 @@ const AdminDashboardPage: React.FC = () => {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Failed to reject deposit');
-      setManualDeposits((prev) => prev.map((req) => req._id === requestId ? { ...req, status: 'rejected' } : req));
+      setManualDeposits((prev) => prev.map((req) => (req._id === requestId || req.id === requestId) ? { ...req, status: 'rejected' } : req));
       addNotification('info', 'Deposit request rejected.');
     } catch (err) {
       setManualDepositsError(err instanceof Error ? err.message : 'Failed to reject deposit');
@@ -721,62 +811,213 @@ const AdminDashboardPage: React.FC = () => {
           </DetailCard>
         );
 
+      case 'manual-deposits':
+        return (
+          <DetailCard>
+            <h2>Manual Deposit Requests</h2>
+            {manualDepositsLoading ? (
+              <div>Loading...</div>
+            ) : manualDepositsError ? (
+              <div style={{ color: 'red' }}>{manualDepositsError}</div>
+            ) : (
+              <Table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {manualDeposits.map((req) => (
+                    <tr key={req._id || req.id}>
+                      <td>{req.user?.name || 'Unknown'}</td>
+                      <td>{req.user?.phone || 'Unknown'}</td>
+                      <td>{formatMoney(req.amount)}</td>
+                      <td>
+                        <StatusBadge status={req.status}>{req.status}</StatusBadge>
+                      </td>
+                      <td>{formatDate(req.createdAt)}</td>
+                      <td>
+                        {req.status === 'pending' && (
+                          <>
+                            <Button style={{ background: theme.colors.success, marginRight: 8 }} onClick={() => handleApproveManualDeposit(req._id || req.id)}>
+                              Approve
+                            </Button>
+                            <Button style={{ background: theme.colors.error }} onClick={() => handleRejectManualDeposit(req._id || req.id)}>
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {req.status !== 'pending' && <span>-</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </DetailCard>
+        );
+
+      case 'user-deposits':
+        return (
+          <DetailCard>
+            <h2>User Deposits</h2>
+            <p>Users who have made deposit requests (not yet invested)</p>
+            {loadingUserDeposits ? (
+              <div>Loading...</div>
+            ) : (
+              <Table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {userDeposits.map((deposit) => (
+                    <tr key={deposit._id || deposit.id}>
+                      <td>{deposit.user?.name || 'Unknown'}</td>
+                      <td>{deposit.user?.phone || 'Unknown'}</td>
+                      <td>{formatMoney(deposit.amount)}</td>
+                      <td>
+                        <StatusBadge status={deposit.status}>{deposit.status}</StatusBadge>
+                      </td>
+                      <td>{formatDate(deposit.createdAt)}</td>
+                      <td>
+                        {deposit.status === 'pending' && (
+                          <>
+                            <Button style={{ background: theme.colors.success, marginRight: 8 }} onClick={() => handleApproveManualDeposit(deposit._id || deposit.id)}>
+                              Approve
+                            </Button>
+                            <Button style={{ background: theme.colors.error }} onClick={() => handleRejectManualDeposit(deposit._id || deposit.id)}>
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {deposit.status !== 'pending' && <span>-</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+            {userDeposits.length === 0 && !loadingUserDeposits && (
+              <p style={{ textAlign: 'center', color: theme.colors.textSecondary }}>
+                No pending user deposits
+              </p>
+            )}
+          </DetailCard>
+        );
+
+      case 'total-investments':
+        return (
+          <DetailCard>
+            <h2>Total Investments</h2>
+            <p>Active investments showing expected profits after expiry</p>
+            {loadingTotalInvestments ? (
+              <div>Loading...</div>
+            ) : (
+              <Table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Investment Amount</th>
+                    <th>Expected Profit (60%)</th>
+                    <th>Total Return</th>
+                    <th>Status</th>
+                    <th>Payment Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {totalInvestments.map((investment) => (
+                    <tr key={investment.id || investment._id}>
+                      <td>{investment.userName || 'Unknown'}</td>
+                      <td>{investment.userPhone || 'Unknown'}</td>
+                      <td>{formatMoney(investment.amount)}</td>
+                      <td>{formatMoney(investment.profitAmount)}</td>
+                      <td>{formatMoney(investment.amount + investment.profitAmount)}</td>
+                      <td>
+                        <StatusBadge status={investment.status}>
+                          {investment.status}
+                        </StatusBadge>
+                      </td>
+                      <td>
+                        <StatusBadge status={investment.paymentStatus}>
+                          {investment.paymentStatus}
+                        </StatusBadge>
+                      </td>
+                      <td>{formatDate(investment.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+            {totalInvestments.length === 0 && !loadingTotalInvestments && (
+              <p style={{ textAlign: 'center', color: theme.colors.textSecondary }}>
+                No active investments
+              </p>
+            )}
+          </DetailCard>
+        );
+
       case 'pending-withdrawals':
         return (
           <DetailCard>
             <h2>Pending Withdrawals</h2>
-            <p>Withdrawal requests waiting for approval</p>
-            <Table>
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Phone</th>
-                  <th>Amount</th>
-                  <th>Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingWithdrawals.map(transaction => {
-                  if (!transaction._id) {
-                    console.error('Transaction missing ID:', transaction);
-                    return null; // Skip rendering this transaction
-                  }
-                  // Try to find user by ID
-                  let user: User | undefined;
-                  if (typeof transaction.userId === 'string') {
-                    user = users.find(u => u.id === transaction.userId);
-                  }
-                  // Fallback: if transaction.userId is an object, use its fields directly
-                  let userName = user?.name;
-                  let userPhone = user?.phone;
-                  if (!user && typeof transaction.userId === 'object' && transaction.userId) {
-                    userName = transaction.userId.name || 'Unknown';
-                    userPhone = transaction.userId.phone || 'Unknown';
-                  }
-                  return (
-                    <tr key={transaction._id}>
-                      <td>{userName || 'Unknown'}</td>
-                      <td>{userPhone || 'Unknown'}</td>
-                      <td>{formatMoney(transaction.amount)}</td>
-                      <td>{formatDate(transaction.createdAt)}</td>
-                      <td>
-                        <Button 
-                          onClick={() => handleApproveWithdrawal(transaction._id!)}
-                          style={{ background: theme.colors.success }}
-                        >
-                          Approve Withdrawal
-                        </Button>
-                      </td>
+            <p>Completed investments automatically marked for withdrawal approval</p>
+            {loadingPendingWithdrawals ? (
+              <div>Loading...</div>
+            ) : (
+              <>
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Phone</th>
+                      <th>Investment Amount</th>
+                      <th>Profit Amount</th>
+                      <th>Total Due</th>
+                      <th>Completed Date</th>
+                      <th>Actions</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-            {pendingWithdrawals.length === 0 && (
-              <p style={{ textAlign: 'center', color: theme.colors.textSecondary }}>
-                No pending withdrawals
-              </p>
+                  </thead>
+                  <tbody>
+                    {pendingWithdrawalsInvestments.map((investment) => (
+                      <tr key={investment.id || investment._id}>
+                        <td>{investment.userName || 'Unknown'}</td>
+                        <td>{investment.userPhone || 'Unknown'}</td>
+                        <td>{formatMoney(investment.amount)}</td>
+                        <td>{formatMoney(investment.profitAmount)}</td>
+                        <td>{formatMoney(investment.amount + investment.profitAmount)}</td>
+                        <td>{investment.profitPaidAt ? formatDate(investment.profitPaidAt) : formatDate(investment.createdAt)}</td>
+                        <td>
+                          <Button 
+                            onClick={() => handleApproveInvestmentWithdrawal(investment.id || investment._id || '')}
+                            style={{ background: theme.colors.success }}
+                          >
+                            Mark as Paid
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+                {pendingWithdrawalsInvestments.length === 0 && (
+                  <p style={{ textAlign: 'center', color: theme.colors.textSecondary }}>
+                    No pending withdrawals
+                  </p>
+                )}
+              </>
             )}
           </DetailCard>
         );
@@ -853,57 +1094,6 @@ const AdminDashboardPage: React.FC = () => {
                   })}
               </tbody>
             </Table>
-          </DetailCard>
-        );
-
-      case 'manual-deposits':
-        return (
-          <DetailCard>
-            <h2>Manual Deposit Requests</h2>
-            {manualDepositsLoading ? (
-              <div>Loading...</div>
-            ) : manualDepositsError ? (
-              <div style={{ color: 'red' }}>{manualDepositsError}</div>
-            ) : (
-              <Table>
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Phone</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {manualDeposits.map((req) => (
-                    <tr key={req._id}>
-                      <td>{req.user?.name || 'Unknown'}</td>
-                      <td>{req.user?.phone || 'Unknown'}</td>
-                      <td>{formatMoney(req.amount)}</td>
-                      <td>
-                        <StatusBadge status={req.status}>{req.status}</StatusBadge>
-                      </td>
-                      <td>{formatDate(req.createdAt)}</td>
-                      <td>
-                        {req.status === 'pending' && (
-                          <>
-                            <Button style={{ background: theme.colors.success, marginRight: 8 }} onClick={() => handleApproveManualDeposit(req._id)}>
-                              Approve
-                            </Button>
-                            <Button style={{ background: theme.colors.error }} onClick={() => handleRejectManualDeposit(req._id)}>
-                              Reject
-                            </Button>
-                          </>
-                        )}
-                        {req.status !== 'pending' && <span>-</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
           </DetailCard>
         );
 
@@ -1004,15 +1194,23 @@ const AdminDashboardPage: React.FC = () => {
         <StatCard onClick={() => setSelectedView('pending-withdrawals')}>
           <StatLabel>
             Pending Withdrawals
-            {pendingWithdrawals.length > 0 && (
-              <NotificationBadge>{pendingWithdrawals.length}</NotificationBadge>
+            {pendingWithdrawalsInvestments.length > 0 && (
+              <NotificationBadge>{pendingWithdrawalsInvestments.length}</NotificationBadge>
             )}
           </StatLabel>
-          <StatValue>{pendingWithdrawals.length}</StatValue>
+          <StatValue>{pendingWithdrawalsInvestments.length}</StatValue>
         </StatCard>
         <StatCard onClick={() => setSelectedView('manual-deposits')}>
           <StatLabel>Manual Deposits</StatLabel>
           <StatValue>{manualDeposits.filter((req) => req.status === 'pending').length}</StatValue>
+        </StatCard>
+        <StatCard onClick={() => setSelectedView('user-deposits')}>
+          <StatLabel>User Deposits</StatLabel>
+          <StatValue>{userDeposits.filter((req) => req.status === 'pending').length}</StatValue>
+        </StatCard>
+        <StatCard onClick={() => setSelectedView('total-investments')}>
+          <StatLabel>Total Investments</StatLabel>
+          <StatValue>{totalInvestments.length}</StatValue>
         </StatCard>
         <StatCard onClick={() => navigate('/admin/mpesa-bot')}>
           <StatLabel>🤖 MPESA Bot</StatLabel>

@@ -125,6 +125,29 @@ export class InvestmentService {
     return response.data.stats;
   }
 
+  // New methods for the three major transaction types
+  async getUserDeposits(): Promise<any[]> {
+    const response = await this.apiCall('/investments/admin/user-deposits');
+    return response.data.deposits;
+  }
+
+  async getTotalInvestments(): Promise<Investment[]> {
+    const response = await this.apiCall('/investments/admin/total-investments');
+    return response.data.investments;
+  }
+
+  async getPendingWithdrawals(): Promise<Investment[]> {
+    const response = await this.apiCall('/investments/admin/pending-withdrawals');
+    return response.data.investments;
+  }
+
+  async approveWithdrawal(investmentId: string): Promise<Investment> {
+    const response = await this.apiCall(`/investments/admin/${investmentId}/approve-withdrawal`, {
+      method: 'PATCH',
+    });
+    return response.data.investment;
+  }
+
   getAllTransactions(): Transaction[] {
     return this.transactions;
   }

@@ -11,6 +11,11 @@ export interface IInvestment extends Document {
   createdAt: Date;
   profitPaidAt?: Date;
   paymentApprovedAt?: Date;
+  // Additional fields for better tracking
+  userName?: string;
+  userPhone?: string;
+  withdrawalStatus?: 'pending' | 'paid';
+  withdrawalApprovedAt?: Date;
 }
 
 const InvestmentSchema = new Schema<IInvestment>({
@@ -24,6 +29,11 @@ const InvestmentSchema = new Schema<IInvestment>({
   createdAt: { type: Date, default: Date.now },
   profitPaidAt: { type: Date },
   paymentApprovedAt: { type: Date },
+  // Additional fields for better tracking
+  userName: { type: String },
+  userPhone: { type: String },
+  withdrawalStatus: { type: String, enum: ['pending', 'paid'], default: 'pending' },
+  withdrawalApprovedAt: { type: Date },
 });
 
 export default mongoose.model<IInvestment>('Investment', InvestmentSchema); 
