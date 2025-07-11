@@ -5,20 +5,20 @@ import {
   approveManualDepositRequest,
   rejectManualDepositRequest
 } from '../controllers/manualDepositController';
-// import { authMiddleware, adminMiddleware } from '../middleware/auth'; // Uncomment if you have these
+import { authenticate, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
 // User creates a manual deposit request
-router.post('/', /*authMiddleware,*/ createManualDepositRequest);
+router.post('/', authenticate, createManualDepositRequest);
 
 // Admin gets all manual deposit requests
-router.get('/', /*authMiddleware, adminMiddleware,*/ getAllManualDepositRequests);
+router.get('/', authenticate, authorize('admin'), getAllManualDepositRequests);
 
 // Admin approves a manual deposit request
-router.patch('/:requestId/approve', /*authMiddleware, adminMiddleware,*/ approveManualDepositRequest);
+router.patch('/:requestId/approve', authenticate, authorize('admin'), approveManualDepositRequest);
 
 // Admin rejects a manual deposit request
-router.patch('/:requestId/reject', /*authMiddleware, adminMiddleware,*/ rejectManualDepositRequest);
+router.patch('/:requestId/reject', authenticate, authorize('admin'), rejectManualDepositRequest);
 
 export default router; 

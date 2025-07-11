@@ -4,6 +4,7 @@ import { Container, Header, Title, Subtitle, Button } from '../../styles/compone
 import { theme, animations } from '../../styles/theme';
 import { authService } from '../../services/singletonAuthService';
 import { transactionService } from '../../services/transactionService';
+import { manualDepositService } from '../../services/manualDepositService';
 import { User } from '../../types';
 import { API_BASE_URL } from '../../services/config';
 
@@ -434,28 +435,20 @@ const DashboardPage: React.FC = () => {
     setDepositSuccess('Processing deposit request...');
     
     try {
-      // Create manual deposit request instead of direct transaction
-      const response = await fetch(`${API_BASE_URL}/manual-deposits`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ amount: amt }),
-      });
+      // Debug: Check if token exists
+      const token = localStorage.getItem('token');
+      console.log('Token exists:', !!token);
+      console.log('Token length:', token?.length);
       
-      if (!response.ok) {
-        throw new Error('Failed to create deposit request');
-      }
-      
-      const data = await response.json();
+      // Create manual deposit request using the service
+      const request = await manualDepositService.createManualDepositRequest(amt);
       
       setDepositSuccess(`Deposit request of ${amt} KSH submitted successfully! Please wait for admin approval.`);
       
       // Add transaction to local list with pending status
       setTransactions([
         {
-          id: data.data.requestId || Math.random().toString(36).substr(2, 9),
+          id: request._id || request.id || Math.random().toString(36).substr(2, 9),
           type: 'deposit',
           amount: amt,
           date: new Date(),
