@@ -256,4 +256,7 @@ export class InvestmentService {
       }
     });
   }
-} 
+}
+
+// Create and export a singleton instance
+export const investmentService = new InvestmentService(); 
