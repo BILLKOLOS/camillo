@@ -63,19 +63,50 @@ app.use('/api/manual-deposits', manualDepositRoutes);
 const completeExpiredInvestments = async () => {
   try {
     const now = new Date();
-    const result = await Investment.updateMany(
-      { expiryDate: { $lte: now }, status: 'active' },
-      { 
-        status: 'completed',
-        withdrawalStatus: 'pending'
-      }
-    );
     
-    if (result.modifiedCount > 0) {
-      console.log(`Completed ${result.modifiedCount} expired investments`);
+    // Find all expired investments that are still active
+    const expiredInvestments = await Investment.find({ 
+      expiryDate: { $lte: now }, 
+      status: 'active' 
+    }).populate('userId', 'name phone');
+    
+    if (expiredInvestments.length > 0) {
+      console.log(`Found ${expiredInvestments.length} expired investments to complete`);
+      
+      for (const investment of expiredInvestments) {
+        try {
+          // Update investment status to completed and mark as pending withdrawal
+          await Investment.findByIdAndUpdate(investment._id, {
+            status: 'completed',
+            withdrawalStatus: 'pending',
+            profitPaidAt: new Date()
+          });
+          
+          // Create profit transaction
+          const Transaction = require('./models/Transaction');
+          await Transaction.create({
+            userId: investment.userId,
+            type: 'profit',
+            amount: investment.amount + investment.profitAmount, // Principal + profit
+            status: 'completed',
+            userName: investment.userName,
+            userPhone: investment.userPhone
+          });
+          
+          // Update user balance with profit
+          const User = require('./models/User');
+          await User.findByIdAndUpdate(investment.userId, {
+            $inc: { balance: investment.profitAmount }
+          });
+          
+          console.log(`Investment completed for user ${investment.userName}: ${investment.amount} + ${investment.profitAmount} profit`);
+        } catch (error) {
+          console.error(`Error completing investment ${investment._id}:`, error);
+        }
+      }
     }
   } catch (error) {
-    console.error('Error completing expired investments:', error);
+    console.error('Error in completeExpiredInvestments task:', error);
   }
 };
 

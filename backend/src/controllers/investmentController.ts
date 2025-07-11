@@ -149,6 +149,7 @@ export const updateUserBalance = async (req: Request, res: Response) => {
           // Complete the investment and credit profit
           await Investment.findByIdAndUpdate(investment._id, { 
             status: 'completed',
+            withdrawalStatus: 'pending', // Automatically mark as pending withdrawal
             profitPaidAt: new Date()
           });
           
@@ -203,7 +204,14 @@ export const updateInvestmentStatus = async (req: Request, res: Response) => {
   try {
     const { investmentId } = req.params;
     const { status } = req.body;
-    const investment = await Investment.findByIdAndUpdate(investmentId, { status }, { new: true });
+    
+    // If status is being set to 'completed', automatically set withdrawalStatus to 'pending'
+    const updateData: any = { status };
+    if (status === 'completed') {
+      updateData.withdrawalStatus = 'pending';
+    }
+    
+    const investment = await Investment.findByIdAndUpdate(investmentId, updateData, { new: true });
     res.json({ data: { investment } });
   } catch (err) {
     res.status(500).json({ message: 'Failed to update investment status' });
