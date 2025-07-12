@@ -775,7 +775,7 @@ const AdminDashboardPage: React.FC = () => {
                     <td>
                       {investment.status === 'active' && investment.paymentStatus === 'pending' && (
                         <Button 
-                          onClick={() => handleApprovePayment(investment.id)}
+                          onClick={() => handleApprovePayment(investment._id || investment.id)}
                           style={{ background: theme.colors.success }}
                         >
                           Mark as Paid
