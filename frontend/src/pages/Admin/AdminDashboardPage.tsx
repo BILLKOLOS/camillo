@@ -221,6 +221,9 @@ const AdminDashboardPage: React.FC = () => {
   const [loadingTotalInvestments, setLoadingTotalInvestments] = useState(false);
   const [loadingPendingWithdrawals, setLoadingPendingWithdrawals] = useState(false);
   
+  const [completedInvestmentsCount, setCompletedInvestmentsCount] = useState(0);
+  const [showCompletedBadge, setShowCompletedBadge] = useState(false);
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -375,6 +378,12 @@ const AdminDashboardPage: React.FC = () => {
       try {
         const investments = await investmentService.getTotalInvestments();
         setTotalInvestments(investments);
+        // Count completed investments
+        const completedCount = investments.filter(inv => inv.status === 'completed').length;
+        if (completedCount > completedInvestmentsCount) {
+          setShowCompletedBadge(true);
+        }
+        setCompletedInvestmentsCount(completedCount);
       } catch (err) {
         console.error('Failed to fetch total investments:', err);
         addNotification('warning', 'Failed to fetch total investments');
@@ -1261,7 +1270,14 @@ const AdminDashboardPage: React.FC = () => {
           <StatValue>{userDeposits.filter((req) => req.status === 'pending').length}</StatValue>
         </StatCard>
         <StatCard onClick={() => setSelectedView('total-investments')}>
-          <StatLabel>Total Investments</StatLabel>
+          <StatLabel>
+            Total Investments
+            {showCompletedBadge && (
+              <NotificationBadge style={{ backgroundColor: theme.colors.error }}>
+                {completedInvestmentsCount}
+              </NotificationBadge>
+            )}
+          </StatLabel>
           <StatValue>{totalInvestments.length}</StatValue>
         </StatCard>
         <StatCard onClick={() => navigate('/admin/mpesa-bot')}>
