@@ -4,7 +4,7 @@ import User from '../models/User';
 
 export const createInvestment = async (req: any, res: Response) => {
   try {
-    const { amount } = req.body;
+    const { amount, testMode } = req.body;
     const userId = req.user.id;
     
     // Get user details for tracking
@@ -13,8 +13,10 @@ export const createInvestment = async (req: any, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Calculate expiry date (24 hours from now)
-    const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Calculate expiry date (24 hours from now, or 1 minute for test mode)
+    const expiryDate = testMode 
+      ? new Date(Date.now() + 1 * 60 * 1000) // 1 minute for testing
+      : new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours normal
     
     const investment = await Investment.create({ 
       userId, 
@@ -22,15 +24,19 @@ export const createInvestment = async (req: any, res: Response) => {
       status: 'active', 
       paymentStatus: 'paid', 
       profitAmount: Math.round(amount * 0.6), 
-      tradingPeriod: 24,
+      tradingPeriod: testMode ? 1 : 24,
       expiryDate,
       userName: user.name,
       userPhone: user.phone
     });
     
     await User.findByIdAndUpdate(userId, { $inc: { balance: -amount } });
+    
+    console.log(`✅ Investment created for user ${user.name}: ${amount} KSH, expires at ${expiryDate.toISOString()}`);
+    
     res.status(201).json({ data: { investment } });
   } catch (err) {
+    console.error('❌ Error creating investment:', err);
     res.status(500).json({ message: 'Failed to create investment' });
   }
 };
@@ -88,15 +94,59 @@ export const getExpiredInvestments = async (req: Request, res: Response) => {
 export const completeExpiredInvestments = async (req: Request, res: Response) => {
   try {
     const now = new Date();
-    const expired = await Investment.updateMany(
-      { expiryDate: { $lte: now }, status: 'active' }, 
-      { 
-        status: 'completed',
-        withdrawalStatus: 'pending' // Automatically mark as pending withdrawal
+    
+    // Find expired investments first
+    const expiredInvestments = await Investment.find({ 
+      expiryDate: { $lte: now }, 
+      status: 'active' 
+    }).populate('userId', 'name phone');
+    
+    console.log(`Found ${expiredInvestments.length} expired investments to complete`);
+    
+    const completedInvestments = [];
+    
+    for (const investment of expiredInvestments) {
+      try {
+        // Update investment status to completed and mark as pending withdrawal
+        const updatedInvestment = await Investment.findByIdAndUpdate(investment._id, {
+          status: 'completed',
+          withdrawalStatus: 'pending',
+          profitPaidAt: new Date()
+        }, { new: true });
+        
+        completedInvestments.push(updatedInvestment);
+        
+        // Create profit transaction
+        const Transaction = require('../models/Transaction');
+        await Transaction.create({
+          userId: investment.userId,
+          type: 'profit',
+          amount: investment.amount + investment.profitAmount,
+          status: 'completed',
+          userName: investment.userName,
+          userPhone: investment.userPhone
+        });
+        
+        // Update user balance with profit
+        await User.findByIdAndUpdate(investment.userId, {
+          $inc: { balance: investment.profitAmount }
+        });
+        
+        console.log(`✅ Investment ${investment._id} completed for user ${investment.userName}`);
+      } catch (error) {
+        console.error(`❌ Error completing investment ${investment._id}:`, error);
       }
-    );
-    res.json({ data: expired });
+    }
+    
+    res.json({ 
+      data: { 
+        completedCount: completedInvestments.length,
+        completedInvestments,
+        message: `Successfully completed ${completedInvestments.length} expired investments`
+      } 
+    });
   } catch (err) {
+    console.error('❌ Error in completeExpiredInvestments:', err);
     res.status(500).json({ message: 'Failed to complete expired investments' });
   }
 };
@@ -252,20 +302,28 @@ export const getAdminNotifications = async (req: Request, res: Response) => {
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     }).populate('userId', 'name phone');
     
-    // Get pending withdrawal requests
+    // Get pending withdrawal requests (transaction-based)
     const pendingWithdrawals = await Transaction.find({
       type: 'withdrawal',
       status: 'pending'
+    }).populate('userId', 'name phone');
+    
+    // Get pending withdrawal investments (investment-based)
+    const pendingWithdrawalInvestments = await Investment.find({
+      status: 'completed',
+      withdrawalStatus: 'pending'
     }).populate('userId', 'name phone');
     
     res.json({ 
       data: { 
         pendingPayments,
         recentProfits,
-        pendingWithdrawals
+        pendingWithdrawals,
+        pendingWithdrawalInvestments
       } 
     });
   } catch (err) {
+    console.error('❌ Error in getAdminNotifications:', err);
     res.status(500).json({ message: 'Failed to get admin notifications' });
   }
 }; 
@@ -307,9 +365,51 @@ export const getPendingWithdrawals = async (req: Request, res: Response) => {
       .populate('userId', 'name phone')
       .sort({ createdAt: -1 });
     
+    console.log(`Found ${investments.length} pending withdrawals`);
+    
     res.json({ data: { investments } });
   } catch (err) {
+    console.error('❌ Error getting pending withdrawals:', err);
     res.status(500).json({ message: 'Failed to get pending withdrawals' });
+  }
+};
+
+// Debug endpoint to check investment statuses
+export const debugInvestmentStatuses = async (req: Request, res: Response) => {
+  try {
+    const now = new Date();
+    
+    const activeInvestments = await Investment.find({ status: 'active' });
+    const completedInvestments = await Investment.find({ status: 'completed' });
+    const pendingWithdrawals = await Investment.find({ 
+      status: 'completed', 
+      withdrawalStatus: 'pending' 
+    });
+    const expiredActiveInvestments = await Investment.find({ 
+      expiryDate: { $lte: now }, 
+      status: 'active' 
+    });
+    
+    res.json({ 
+      data: { 
+        activeInvestments: activeInvestments.length,
+        completedInvestments: completedInvestments.length,
+        pendingWithdrawals: pendingWithdrawals.length,
+        expiredActiveInvestments: expiredActiveInvestments.length,
+        currentTime: now.toISOString(),
+        expiredInvestments: expiredActiveInvestments.map(inv => ({
+          id: inv._id,
+          userName: inv.userName,
+          amount: inv.amount,
+          expiryDate: inv.expiryDate,
+          status: inv.status,
+          withdrawalStatus: inv.withdrawalStatus
+        }))
+      } 
+    });
+  } catch (err) {
+    console.error('❌ Error in debugInvestmentStatuses:', err);
+    res.status(500).json({ message: 'Failed to get debug info' });
   }
 };
 

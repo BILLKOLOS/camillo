@@ -76,11 +76,13 @@ const completeExpiredInvestments = async () => {
       for (const investment of expiredInvestments) {
         try {
           // Update investment status to completed and mark as pending withdrawal
-          await Investment.findByIdAndUpdate(investment._id, {
+          const updatedInvestment = await Investment.findByIdAndUpdate(investment._id, {
             status: 'completed',
             withdrawalStatus: 'pending',
             profitPaidAt: new Date()
-          });
+          }, { new: true });
+          
+          console.log(`✅ Investment ${investment._id} marked as completed with pending withdrawal status`);
           
           // Create profit transaction
           const Transaction = require('./models/Transaction');
@@ -99,14 +101,16 @@ const completeExpiredInvestments = async () => {
             $inc: { balance: investment.profitAmount }
           });
           
-          console.log(`Investment completed for user ${investment.userName}: ${investment.amount} + ${investment.profitAmount} profit`);
+          console.log(`✅ Investment completed for user ${investment.userName}: ${investment.amount} + ${investment.profitAmount} profit`);
         } catch (error) {
-          console.error(`Error completing investment ${investment._id}:`, error);
+          console.error(`❌ Error completing investment ${investment._id}:`, error);
         }
       }
+    } else {
+      console.log('ℹ️ No expired investments found at', now.toISOString());
     }
   } catch (error) {
-    console.error('Error in completeExpiredInvestments task:', error);
+    console.error('❌ Error in completeExpiredInvestments task:', error);
   }
 };
 

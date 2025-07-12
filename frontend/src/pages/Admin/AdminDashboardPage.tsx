@@ -395,8 +395,9 @@ const AdminDashboardPage: React.FC = () => {
       try {
         const withdrawals = await investmentService.getPendingWithdrawals();
         setPendingWithdrawalsInvestments(withdrawals);
+        console.log('✅ Fetched pending withdrawals:', withdrawals.length);
       } catch (err) {
-        console.error('Failed to fetch pending withdrawals:', err);
+        console.error('❌ Failed to fetch pending withdrawals:', err);
         addNotification('warning', 'Failed to fetch pending withdrawals');
       } finally {
         setLoadingPendingWithdrawals(false);
@@ -405,6 +406,34 @@ const AdminDashboardPage: React.FC = () => {
     
     fetchPendingWithdrawals();
   }, [user, selectedView]);
+
+  // Periodic refresh for pending withdrawals
+  useEffect(() => {
+    if (!user) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const withdrawals = await investmentService.getPendingWithdrawals();
+        const previousCount = pendingWithdrawalsInvestments.length;
+        setPendingWithdrawalsInvestments(withdrawals);
+        
+        // Notify if there are new pending withdrawals
+        if (withdrawals.length > previousCount) {
+          const newCount = withdrawals.length - previousCount;
+          addNotification('info', `🆕 ${newCount} new investment${newCount > 1 ? 's' : ''} ready for withdrawal approval!`);
+        }
+        
+        // Notify if there are any pending withdrawals
+        if (withdrawals.length > 0 && selectedView !== 'pending-withdrawals') {
+          addNotification('warning', `💰 ${withdrawals.length} withdrawal${withdrawals.length > 1 ? 's' : ''} pending approval. Click "Pending Withdrawals" to review.`);
+        }
+      } catch (error) {
+        console.error('Periodic pending withdrawals refresh failed:', error);
+      }
+    }, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [user, pendingWithdrawalsInvestments.length, selectedView]);
 
   const handleSearchUsers = async () => {
     if (!searchPhone.trim()) {
@@ -1192,14 +1221,28 @@ const AdminDashboardPage: React.FC = () => {
           </StatLabel>
           <StatValue>{stats.pendingPayments}</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('pending-withdrawals')}>
+        <StatCard 
+          onClick={() => setSelectedView('pending-withdrawals')}
+          style={pendingWithdrawalsInvestments.length > 0 ? { 
+            border: '2px solid #f59e0b', 
+            backgroundColor: '#fef3c7' 
+          } : {}}
+        >
           <StatLabel>
             Pending Withdrawals
             {pendingWithdrawalsInvestments.length > 0 && (
-              <NotificationBadge>{pendingWithdrawalsInvestments.length}</NotificationBadge>
+              <NotificationBadge style={{ backgroundColor: '#f59e0b' }}>
+                {pendingWithdrawalsInvestments.length}
+              </NotificationBadge>
             )}
           </StatLabel>
-          <StatValue>{pendingWithdrawalsInvestments.length}</StatValue>
+          <StatValue style={{ color: pendingWithdrawalsInvestments.length > 0 ? '#d97706' : 'inherit' }}>
+            {pendingWithdrawalsInvestments.length}
+          </StatValue>
+        </StatCard>
+        <StatCard onClick={handleCompleteExpiredInvestments}>
+          <StatLabel>Complete Expired</StatLabel>
+          <StatValue>🔄</StatValue>
         </StatCard>
         <StatCard onClick={() => setSelectedView('manual-deposits')}>
           <StatLabel>Manual Deposits</StatLabel>
