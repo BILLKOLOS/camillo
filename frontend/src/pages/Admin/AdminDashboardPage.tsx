@@ -225,6 +225,16 @@ const AdminDashboardPage: React.FC = () => {
   const [lastTotalInvestmentsView, setLastTotalInvestmentsView] = useState<Date | null>(null);
   const [newCompletedInvestmentsCount, setNewCompletedInvestmentsCount] = useState(0);
   
+  // Debug useEffect to log state changes
+  useEffect(() => {
+    console.log('🔍 Debug - State values:', {
+      newCompletedInvestmentsCount,
+      lastTotalInvestmentsView: lastTotalInvestmentsView?.toISOString(),
+      selectedView
+    });
+  }, [newCompletedInvestmentsCount, lastTotalInvestmentsView, selectedView]);
+
+  // Handler for Total Investments card click
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -453,16 +463,23 @@ const AdminDashboardPage: React.FC = () => {
       try {
         // Only check if we have a last view time (meaning user has viewed the section at least once)
         if (lastTotalInvestmentsView) {
+          console.log('🔍 Checking for new completed investments since:', lastTotalInvestmentsView.toISOString());
           const completedInvestments = await investmentService.getCompletedInvestments(lastTotalInvestmentsView.toISOString());
           const newCount = completedInvestments.length;
           
+          console.log('📊 Found new completed investments:', newCount);
+          
           // Only show notification if there are new completed investments and we're not currently viewing the section
-          if (newCount > 0 && selectedView !== 'total-investments') {
+          if (newCount > 0 && selectedView !== 'investments') {
             setNewCompletedInvestmentsCount(newCount);
             addNotification('info', `🆕 ${newCount} new investment${newCount > 1 ? 's' : ''} completed! Click "Total Investments" to view.`);
+            console.log('🔴 Setting notification badge to:', newCount);
           } else {
             setNewCompletedInvestmentsCount(newCount);
+            console.log('📊 Updated notification count to:', newCount);
           }
+        } else {
+          console.log('⏰ No last view time set yet');
         }
       } catch (error) {
         console.error('Periodic completed investments check failed:', error);
@@ -1181,9 +1198,11 @@ const AdminDashboardPage: React.FC = () => {
 
   // Handler for Total Investments card click
   const handleTotalInvestmentsClick = () => {
-    setSelectedView('total-investments');
+    console.log('🖱️ Total Investments card clicked');
+    setSelectedView('investments');
     setLastTotalInvestmentsView(new Date());
     setNewCompletedInvestmentsCount(0); // Clear the notification
+    console.log('✅ Cleared notification badge');
   };
 
   if (loading) {
@@ -1249,8 +1268,15 @@ const AdminDashboardPage: React.FC = () => {
           <StatLabel>Total Users</StatLabel>
           <StatValue>{stats.totalUsers}</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('investments')}>
-          <StatLabel>Total Investments</StatLabel>
+        <StatCard onClick={handleTotalInvestmentsClick}>
+          <StatLabel>
+            Total Investments
+            {newCompletedInvestmentsCount > 0 && (
+              <NotificationBadge style={{ backgroundColor: theme.colors.error }}>
+                {newCompletedInvestmentsCount}
+              </NotificationBadge>
+            )}
+          </StatLabel>
           <StatValue>{stats.totalInvestments}</StatValue>
         </StatCard>
         <StatCard onClick={() => setSelectedView('transactions')}>
@@ -1301,15 +1327,8 @@ const AdminDashboardPage: React.FC = () => {
           <StatLabel>User Deposits</StatLabel>
           <StatValue>{userDeposits.filter((req) => req.status === 'pending').length}</StatValue>
         </StatCard>
-        <StatCard onClick={handleTotalInvestmentsClick}>
-          <StatLabel>
-            Total Investments
-            {newCompletedInvestmentsCount > 0 && (
-              <NotificationBadge style={{ backgroundColor: theme.colors.error }}>
-                {newCompletedInvestmentsCount}
-              </NotificationBadge>
-            )}
-          </StatLabel>
+        <StatCard onClick={() => setSelectedView('total-investments')}>
+          <StatLabel>Active Investments</StatLabel>
           <StatValue>{totalInvestments.length}</StatValue>
         </StatCard>
         <StatCard onClick={() => navigate('/admin/mpesa-bot')}>
