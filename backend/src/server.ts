@@ -63,6 +63,7 @@ app.use('/api/manual-deposits', manualDepositRoutes);
 const completeExpiredInvestments = async () => {
   try {
     const now = new Date();
+    console.log(`🕐 Scheduled task running at ${now.toISOString()}`);
     
     // Find all expired investments that are still active
     const expiredInvestments = await Investment.find({ 
@@ -70,8 +71,16 @@ const completeExpiredInvestments = async () => {
       status: 'active' 
     }).populate('userId', 'name phone');
     
+    console.log(`🔍 Found ${expiredInvestments.length} expired investments to complete`);
+    
     if (expiredInvestments.length > 0) {
-      console.log(`Found ${expiredInvestments.length} expired investments to complete`);
+      console.log(`📋 Expired investments:`, expiredInvestments.map(inv => ({
+        id: inv._id,
+        userName: inv.userName,
+        amount: inv.amount,
+        expiryDate: inv.expiryDate,
+        status: inv.status
+      })));
       
       for (const investment of expiredInvestments) {
         try {
@@ -118,6 +127,7 @@ const completeExpiredInvestments = async () => {
 setInterval(completeExpiredInvestments, 5 * 60 * 1000);
 
 // Also run it once on startup
+console.log('🚀 Setting up scheduled task to complete expired investments every 5 minutes');
 completeExpiredInvestments();
 
 app.use(errorHandler);

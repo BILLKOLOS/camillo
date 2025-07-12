@@ -186,50 +186,23 @@ export const updateUserBalance = async (req: Request, res: Response) => {
         userId,
         amount: amountAdded,
         status: 'active',
-        paymentStatus: 'pending', // Will be marked as paid when admin approves
+        paymentStatus: 'paid', // Mark as paid since this is an admin action
         profitAmount,
         tradingPeriod: 1, // 1 hour
         expiryDate,
         createdAt: new Date(),
+        userName: user.name,
+        userPhone: user.phone
       });
       
-      // Schedule profit completion after 1 hour
-      setTimeout(async () => {
-        try {
-          // Complete the investment and credit profit
-          await Investment.findByIdAndUpdate(investment._id, { 
-            status: 'completed',
-            withdrawalStatus: 'pending', // Automatically mark as pending withdrawal
-            profitPaidAt: new Date()
-          });
-          
-          // Create profit transaction
-          const Transaction = require('../models/Transaction');
-          await Transaction.create({
-            userId,
-            type: 'profit',
-            amount: amountAdded + profitAmount, // Principal + profit
-            status: 'completed',
-            userName: user.name,
-            userPhone: user.phone
-          });
-          
-          // Update user balance with profit
-          await User.findByIdAndUpdate(userId, { 
-            $inc: { balance: profitAmount }
-          });
-          
-          console.log(`Investment completed for user ${user.name}: ${amountAdded} + ${profitAmount} profit`);
-        } catch (error) {
-          console.error('Error completing investment:', error);
-        }
-      }, 60 * 60 * 1000); // 1 hour
+      // Note: Investment will be automatically completed by the scheduled task when it expires
+      console.log(`✅ Investment created for user ${user.name}: ${amountAdded} KSH, expires at ${expiryDate.toISOString()}`);
       
       res.json({ 
         data: { 
           user: updatedUser,
           investment,
-          message: `Balance updated and investment created. ${profitAmount} KSH profit will be credited in 1 hour.`
+          message: `Balance updated and investment created. ${profitAmount} KSH profit will be automatically credited when investment expires.`
         } 
       });
     } else {

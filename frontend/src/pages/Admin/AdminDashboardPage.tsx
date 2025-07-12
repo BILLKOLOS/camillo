@@ -414,26 +414,29 @@ const AdminDashboardPage: React.FC = () => {
     const interval = setInterval(async () => {
       try {
         const withdrawals = await investmentService.getPendingWithdrawals();
-        const previousCount = pendingWithdrawalsInvestments.length;
-        setPendingWithdrawalsInvestments(withdrawals);
-        
-        // Notify if there are new pending withdrawals
-        if (withdrawals.length > previousCount) {
-          const newCount = withdrawals.length - previousCount;
-          addNotification('info', `🆕 ${newCount} new investment${newCount > 1 ? 's' : ''} ready for withdrawal approval!`);
-        }
-        
-        // Notify if there are any pending withdrawals
-        if (withdrawals.length > 0 && selectedView !== 'pending-withdrawals') {
-          addNotification('warning', `💰 ${withdrawals.length} withdrawal${withdrawals.length > 1 ? 's' : ''} pending approval. Click "Pending Withdrawals" to review.`);
-        }
+        setPendingWithdrawalsInvestments(prev => {
+          const previousCount = prev.length;
+          
+          // Notify if there are new pending withdrawals
+          if (withdrawals.length > previousCount) {
+            const newCount = withdrawals.length - previousCount;
+            addNotification('info', `🆕 ${newCount} new investment${newCount > 1 ? 's' : ''} ready for withdrawal approval!`);
+          }
+          
+          // Notify if there are any pending withdrawals
+          if (withdrawals.length > 0 && selectedView !== 'pending-withdrawals') {
+            addNotification('warning', `💰 ${withdrawals.length} withdrawal${withdrawals.length > 1 ? 's' : ''} pending approval. Click "Pending Withdrawals" to review.`);
+          }
+          
+          return withdrawals;
+        });
       } catch (error) {
         console.error('Periodic pending withdrawals refresh failed:', error);
       }
     }, 30000); // Check every 30 seconds
     
     return () => clearInterval(interval);
-  }, [user, pendingWithdrawalsInvestments.length, selectedView]);
+  }, [user, selectedView]);
 
   const handleSearchUsers = async () => {
     if (!searchPhone.trim()) {
@@ -521,14 +524,16 @@ const AdminDashboardPage: React.FC = () => {
         addNotification('info', 'No expired investments found to complete.');
       }
       
-      // Refresh data
-      const [allInvestments, statsData, pendingData] = await Promise.all([
+      // Refresh data including pending withdrawals
+      const [allInvestments, statsData, pendingData, pendingWithdrawalsData] = await Promise.all([
         investmentService.getAllInvestments(),
         investmentService.getInvestmentStats(),
-        investmentService.getCompletedPendingPayments()
+        investmentService.getCompletedPendingPayments(),
+        investmentService.getPendingWithdrawals()
       ]);
       setInvestments(allInvestments);
       setPendingPayments(pendingData);
+      setPendingWithdrawalsInvestments(pendingWithdrawalsData);
       setStats(prev => ({
         ...prev,
         expiredInvestments: statsData.expiredInvestments,
