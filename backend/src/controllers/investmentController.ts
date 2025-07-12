@@ -232,10 +232,15 @@ export const updateInvestmentStatus = async (req: Request, res: Response) => {
     const { investmentId } = req.params;
     const { status } = req.body;
     
-    // If status is being set to 'completed', automatically set withdrawalStatus to 'pending'
+    // If status is being set to 'completed', automatically set withdrawalStatus to 'pending' and profitPaidAt if not set
     const updateData: any = { status };
     if (status === 'completed') {
       updateData.withdrawalStatus = 'pending';
+      // Only set profitPaidAt if not already set
+      const investment = await Investment.findById(investmentId);
+      if (investment && !investment.profitPaidAt) {
+        updateData.profitPaidAt = new Date();
+      }
     }
     
     const investment = await Investment.findByIdAndUpdate(investmentId, updateData, { new: true });

@@ -8,8 +8,8 @@ async function createCompletedInvestment() {
     
     // First, login as admin to get token
     const loginResponse = await axios.post(`${API_BASE_URL}/auth/login`, {
-      email: 'admin@camillo.com',
-      password: 'admin123'
+      email: 'Admin@camillo.com',
+      password: 'Admin@Camillo2020$2019'
     });
     
     const token = loginResponse.data.data.token;
