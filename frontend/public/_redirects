@@ -1,1 +1,11 @@
-/*    /index.html   200 
+# SPA Routing - Redirect all routes to index.html
+/*    /index.html   200
+
+# Specific routes for better compatibility
+/admin    /index.html   200
+/dashboard    /index.html   200
+/investments    /index.html   200
+/auth/*    /index.html   200
+
+# Handle API routes (if any)
+/api/*    https://your-backend-url.onrender.com/api/:splat    200 
