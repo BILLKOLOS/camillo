@@ -221,8 +221,9 @@ const AdminDashboardPage: React.FC = () => {
   const [loadingTotalInvestments, setLoadingTotalInvestments] = useState(false);
   const [loadingPendingWithdrawals, setLoadingPendingWithdrawals] = useState(false);
   
-  const [completedInvestmentsCount, setCompletedInvestmentsCount] = useState(0);
-  const [showCompletedBadge, setShowCompletedBadge] = useState(false);
+  // New state for tracking last view time and new completed investments
+  const [lastTotalInvestmentsView, setLastTotalInvestmentsView] = useState<Date | null>(null);
+  const [newCompletedInvestmentsCount, setNewCompletedInvestmentsCount] = useState(0);
   
   const navigate = useNavigate();
 
@@ -277,6 +278,9 @@ const AdminDashboardPage: React.FC = () => {
           pendingPayments: statsData.pendingPayments,
           expiredInvestments: statsData.expiredInvestments,
         });
+
+        // Initialize the last view time to now so we start tracking from this point
+        setLastTotalInvestmentsView(new Date());
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
       } finally {
@@ -378,12 +382,6 @@ const AdminDashboardPage: React.FC = () => {
       try {
         const investments = await investmentService.getTotalInvestments();
         setTotalInvestments(investments);
-        // Count completed investments
-        const completedCount = investments.filter(inv => inv.status === 'completed').length;
-        if (completedCount > completedInvestmentsCount) {
-          setShowCompletedBadge(true);
-        }
-        setCompletedInvestmentsCount(completedCount);
       } catch (err) {
         console.error('Failed to fetch total investments:', err);
         addNotification('warning', 'Failed to fetch total investments');
@@ -446,6 +444,33 @@ const AdminDashboardPage: React.FC = () => {
     
     return () => clearInterval(interval);
   }, [user, selectedView]);
+
+  // Periodic check for new completed investments
+  useEffect(() => {
+    if (!user) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        // Only check if we have a last view time (meaning user has viewed the section at least once)
+        if (lastTotalInvestmentsView) {
+          const completedInvestments = await investmentService.getCompletedInvestments(lastTotalInvestmentsView.toISOString());
+          const newCount = completedInvestments.length;
+          
+          // Only show notification if there are new completed investments and we're not currently viewing the section
+          if (newCount > 0 && selectedView !== 'total-investments') {
+            setNewCompletedInvestmentsCount(newCount);
+            addNotification('info', `🆕 ${newCount} new investment${newCount > 1 ? 's' : ''} completed! Click "Total Investments" to view.`);
+          } else {
+            setNewCompletedInvestmentsCount(newCount);
+          }
+        }
+      } catch (error) {
+        console.error('Periodic completed investments check failed:', error);
+      }
+    }, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [user, lastTotalInvestmentsView, selectedView]);
 
   const handleSearchUsers = async () => {
     if (!searchPhone.trim()) {
@@ -1154,6 +1179,13 @@ const AdminDashboardPage: React.FC = () => {
     window.location.href = '/';
   };
 
+  // Handler for Total Investments card click
+  const handleTotalInvestmentsClick = () => {
+    setSelectedView('total-investments');
+    setLastTotalInvestmentsView(new Date());
+    setNewCompletedInvestmentsCount(0); // Clear the notification
+  };
+
   if (loading) {
     return (
       <Container>
@@ -1269,12 +1301,12 @@ const AdminDashboardPage: React.FC = () => {
           <StatLabel>User Deposits</StatLabel>
           <StatValue>{userDeposits.filter((req) => req.status === 'pending').length}</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('total-investments')}>
+        <StatCard onClick={handleTotalInvestmentsClick}>
           <StatLabel>
             Total Investments
-            {showCompletedBadge && (
+            {newCompletedInvestmentsCount > 0 && (
               <NotificationBadge style={{ backgroundColor: theme.colors.error }}>
-                {completedInvestmentsCount}
+                {newCompletedInvestmentsCount}
               </NotificationBadge>
             )}
           </StatLabel>

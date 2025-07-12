@@ -411,4 +411,26 @@ export const approveWithdrawal = async (req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ message: 'Failed to approve withdrawal' });
   }
+};
+
+// New endpoint for getting completed investments for notification system
+export const getCompletedInvestments = async (req: Request, res: Response) => {
+  try {
+    const { since } = req.query;
+    let query: any = { status: 'completed' };
+    
+    // If since parameter is provided, filter investments completed after that date
+    if (since) {
+      query.profitPaidAt = { $gte: new Date(since as string) };
+    }
+    
+    const investments = await Investment.find(query)
+      .populate('userId', 'name phone')
+      .sort({ profitPaidAt: -1 });
+    
+    res.json({ data: { investments } });
+  } catch (err) {
+    console.error('❌ Error getting completed investments:', err);
+    res.status(500).json({ message: 'Failed to get completed investments' });
+  }
 }; 

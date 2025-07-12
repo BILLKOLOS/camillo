@@ -141,6 +141,12 @@ export class InvestmentService {
     return response.data.investments;
   }
 
+  async getCompletedInvestments(since?: string): Promise<Investment[]> {
+    const params = since ? `?since=${encodeURIComponent(since)}` : '';
+    const response = await this.apiCall(`/investments/admin/completed-investments${params}`);
+    return response.data.investments;
+  }
+
   async approveWithdrawal(investmentId: string): Promise<Investment> {
     const response = await this.apiCall(`/investments/admin/${investmentId}/approve-withdrawal`, {
       method: 'PATCH',

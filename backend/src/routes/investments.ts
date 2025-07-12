@@ -17,7 +17,8 @@ import {
   getTotalInvestments,
   getPendingWithdrawals,
   approveWithdrawal,
-  debugInvestmentStatuses
+  debugInvestmentStatuses,
+  getCompletedInvestments
 } from '../controllers/investmentController';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -45,6 +46,7 @@ router.get('/admin/user-deposits', authenticate, authorize('admin'), getUserDepo
 router.get('/admin/total-investments', authenticate, authorize('admin'), getTotalInvestments);
 router.get('/admin/pending-withdrawals', authenticate, authorize('admin'), getPendingWithdrawals);
 router.patch('/admin/:investmentId/approve-withdrawal', authenticate, authorize('admin'), approveWithdrawal);
+router.get('/admin/completed-investments', authenticate, authorize('admin'), getCompletedInvestments);
 
 // Debug route
 router.get('/admin/debug-statuses', authenticate, authorize('admin'), debugInvestmentStatuses);
