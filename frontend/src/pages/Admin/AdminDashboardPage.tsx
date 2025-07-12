@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Container, Header, Title, Subtitle, Button } from '../../styles/components';
 import { theme } from '../../styles/theme';
@@ -37,6 +37,68 @@ const DetailCard = styled.div`
   background: white;
   border-radius: ${theme.borderRadius};
   box-shadow: ${theme.shadows.light};
+  transition: box-shadow 0.3s ease;
+  animation: slideInUp 0.5s ease-out;
+  
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const BackToOverviewButton = styled(Button)`
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  z-index: 1000;
+  background: ${theme.gradients.primary};
+  box-shadow: ${theme.shadows.heavy};
+  animation: slideInRight 0.3s ease-out;
+  
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+`;
+
+const ScrollToTopButton = styled(Button)`
+  position: fixed;
+  bottom: 30px;
+  right: 20px;
+  z-index: 1000;
+  background: ${theme.gradients.accent};
+  box-shadow: ${theme.shadows.heavy};
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  animation: slideInUp 0.3s ease-out;
+  
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 `;
 
 const StatValue = styled.div`
@@ -225,6 +287,14 @@ const AdminDashboardPage: React.FC = () => {
   const [lastTotalInvestmentsView, setLastTotalInvestmentsView] = useState<Date | null>(null);
   const [newCompletedInvestmentsCount, setNewCompletedInvestmentsCount] = useState(0);
   
+  // State for scroll-to-top button
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+  
+  // Refs for automatic scrolling
+  const detailViewRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   // Debug useEffect to log state changes
   useEffect(() => {
     console.log('🔍 Debug - State values:', {
@@ -236,6 +306,117 @@ const AdminDashboardPage: React.FC = () => {
 
   // Handler for Total Investments card click
   const navigate = useNavigate();
+
+  // Function to scroll to detail view when a section is opened
+  const scrollToDetailView = () => {
+    if (detailViewRef.current && selectedView !== 'overview') {
+      console.log('📜 Scrolling to detail view...');
+      
+      // Show a temporary scroll indicator
+      const scrollIndicator = document.createElement('div');
+      scrollIndicator.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(33, 150, 243, 0.9);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        font-size: 14px;
+        animation: fadeIn 0.3s ease-out;
+      `;
+      scrollIndicator.textContent = '📜 Scrolling to section...';
+      document.body.appendChild(scrollIndicator);
+      
+      setTimeout(() => {
+        detailViewRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+        
+        // Add a subtle visual feedback
+        if (detailViewRef.current) {
+          detailViewRef.current.style.boxShadow = '0 0 20px rgba(33, 150, 243, 0.3)';
+          setTimeout(() => {
+            if (detailViewRef.current) {
+              detailViewRef.current.style.boxShadow = '';
+            }
+          }, 1000);
+        }
+        
+        // Remove the scroll indicator after scrolling completes
+        setTimeout(() => {
+          if (document.body.contains(scrollIndicator)) {
+            document.body.removeChild(scrollIndicator);
+          }
+        }, 1500);
+      }, 100); // Small delay to ensure the content is rendered
+    }
+  };
+
+  // Function to scroll to top when notifications appear
+  const scrollToTop = () => {
+    if (containerRef.current) {
+      console.log('📜 Scrolling to top for notifications...');
+      
+      // Show a temporary scroll indicator
+      const scrollIndicator = document.createElement('div');
+      scrollIndicator.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(76, 175, 80, 0.9);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        font-size: 14px;
+        animation: fadeIn 0.3s ease-out;
+      `;
+      scrollIndicator.textContent = '📢 Scrolling to notifications...';
+      document.body.appendChild(scrollIndicator);
+      
+      containerRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+      
+      // Remove the scroll indicator after scrolling completes
+      setTimeout(() => {
+        if (document.body.contains(scrollIndicator)) {
+          document.body.removeChild(scrollIndicator);
+        }
+      }, 1500);
+    }
+  };
+
+  // Effect to scroll to detail view when selectedView changes
+  useEffect(() => {
+    if (selectedView !== 'overview') {
+      scrollToDetailView();
+    }
+  }, [selectedView]);
+
+  // Effect to scroll to top when notifications are added
+  useEffect(() => {
+    if (notifications.length > 0) {
+      scrollToTop();
+    }
+  }, [notifications.length]);
+
+  // Effect to handle scroll events for scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setShowScrollToTop(scrollTop > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -566,10 +747,14 @@ const AdminDashboardPage: React.FC = () => {
     };
     setNotifications(prev => [notification, ...prev.slice(0, 4)]); // Keep only last 5 notifications
     
-    // Auto-remove notification after 5 seconds
+    // Auto-remove notification after 8 seconds
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== notification.id));
-    }, 5000);
+    }, 8000);
+  };
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const handleCompleteExpiredInvestments = async () => {
@@ -712,7 +897,7 @@ const AdminDashboardPage: React.FC = () => {
     switch (selectedView) {
       case 'users':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>User Management</h2>
             <SearchContainer>
               <SearchInput
@@ -792,7 +977,7 @@ const AdminDashboardPage: React.FC = () => {
 
       case 'investments':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>Investment Management</h2>
             <Table>
               <thead>
@@ -853,7 +1038,7 @@ const AdminDashboardPage: React.FC = () => {
 
       case 'pending-payments':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>Pending Payments</h2>
             <p>Active investments waiting for payment approval</p>
             <Table>
@@ -902,7 +1087,7 @@ const AdminDashboardPage: React.FC = () => {
 
       case 'manual-deposits':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>Manual Deposit Requests</h2>
             {manualDepositsLoading ? (
               <div>Loading...</div>
@@ -953,7 +1138,7 @@ const AdminDashboardPage: React.FC = () => {
 
       case 'user-deposits':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>User Deposits</h2>
             <p>Users who have made deposit requests (not yet invested)</p>
             {loadingUserDeposits ? (
@@ -1008,7 +1193,7 @@ const AdminDashboardPage: React.FC = () => {
 
       case 'total-investments':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>Total Investments</h2>
             <p>Active investments showing expected profits after expiry</p>
             {loadingTotalInvestments ? (
@@ -1061,7 +1246,7 @@ const AdminDashboardPage: React.FC = () => {
 
       case 'pending-withdrawals':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>Pending Withdrawals</h2>
             <p>Completed investments automatically marked for withdrawal approval</p>
             {loadingPendingWithdrawals ? (
@@ -1113,7 +1298,7 @@ const AdminDashboardPage: React.FC = () => {
 
       case 'transactions':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>Transaction History</h2>
             <Table>
               <thead>
@@ -1142,7 +1327,7 @@ const AdminDashboardPage: React.FC = () => {
 
       case 'active':
         return (
-          <DetailCard>
+          <DetailCard ref={detailViewRef}>
             <h2>Active Investments</h2>
             <Button 
               onClick={handleCompleteExpiredInvestments}
@@ -1205,6 +1390,23 @@ const AdminDashboardPage: React.FC = () => {
     console.log('✅ Cleared notification badge');
   };
 
+  // Enhanced click handlers with automatic scrolling
+  const handleSectionClick = (view: typeof selectedView) => {
+    setSelectedView(view);
+    console.log(`🖱️ ${view} section clicked - will scroll to detail view`);
+    
+    // Add visual feedback to the clicked card
+    const event = window.event as any;
+    if (event?.target?.closest('.stat-card')) {
+      const card = event.target.closest('.stat-card');
+      card.style.transform = 'scale(0.95)';
+      card.style.transition = 'transform 0.1s ease';
+      setTimeout(() => {
+        card.style.transform = '';
+      }, 100);
+    }
+  };
+
   // Test function to simulate new completed investments
   const testNotification = () => {
     console.log('🧪 Testing notification system...');
@@ -1245,7 +1447,7 @@ const AdminDashboardPage: React.FC = () => {
   }
 
   return (
-    <Container>
+    <Container ref={containerRef}>
       <Header>
         <Title>Admin Dashboard</Title>
         <Subtitle>Welcome, {user?.name || 'Admin'}</Subtitle>
@@ -1271,7 +1473,21 @@ const AdminDashboardPage: React.FC = () => {
 
       {/* Notifications */}
       {notifications.length > 0 && (
-        <div style={{ marginBottom: '20px' }}>
+        <div ref={notificationsRef} style={{ marginBottom: '20px' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            marginBottom: '10px',
+            padding: '8px 12px',
+            background: 'rgba(33, 150, 243, 0.1)',
+            borderRadius: '6px',
+            border: '1px solid rgba(33, 150, 243, 0.2)'
+          }}>
+            <span style={{ marginRight: '8px' }}>📢</span>
+            <span style={{ fontSize: '0.9rem', color: theme.colors.textSecondary }}>
+              {notifications.length} notification{notifications.length > 1 ? 's' : ''} - Auto-scrolled to top
+            </span>
+          </div>
           {notifications.map(notification => (
             <div
               key={notification.id}
@@ -1285,24 +1501,47 @@ const AdminDashboardPage: React.FC = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                animation: 'slideIn 0.3s ease-out'
+                animation: 'slideIn 0.3s ease-out',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                position: 'relative'
               }}
             >
-              <span>{notification.message}</span>
-              <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                {notification.timestamp.toLocaleTimeString()}
-              </span>
+              <span style={{ flex: 1, marginRight: '10px' }}>{notification.message}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                  {notification.timestamp.toLocaleTimeString()}
+                </span>
+                <button
+                  onClick={() => removeNotification(notification.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    opacity: 0.7,
+                    padding: '0 4px',
+                    borderRadius: '4px',
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={(e) => (e.target as HTMLElement).style.opacity = '1'}
+                  onMouseLeave={(e) => (e.target as HTMLElement).style.opacity = '0.7'}
+                  title="Dismiss notification"
+                >
+                  ×
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
       <AdminGrid>
-        <StatCard onClick={() => setSelectedView('users')}>
+        <StatCard className="stat-card" onClick={() => handleSectionClick('users')}>
           <StatLabel>Total Users</StatLabel>
           <StatValue>{stats.totalUsers}</StatValue>
         </StatCard>
-        <StatCard onClick={handleTotalInvestmentsClick}>
+        <StatCard className="stat-card" onClick={handleTotalInvestmentsClick}>
           <StatLabel>
             Total Investments
             {newCompletedInvestmentsCount > 0 && (
@@ -1313,15 +1552,15 @@ const AdminDashboardPage: React.FC = () => {
           </StatLabel>
           <StatValue>{stats.totalInvestments}</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('transactions')}>
+        <StatCard className="stat-card" onClick={() => handleSectionClick('transactions')}>
           <StatLabel>Total Transactions</StatLabel>
           <StatValue>{stats.totalTransactions}</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('active')}>
+        <StatCard className="stat-card" onClick={() => handleSectionClick('active')}>
           <StatLabel>Active Investments</StatLabel>
           <StatValue>{stats.activeInvestments}</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('pending-payments')}>
+        <StatCard className="stat-card" onClick={() => handleSectionClick('pending-payments')}>
           <StatLabel>
             Pending Payments
             {stats.pendingPayments > 0 && (
@@ -1331,7 +1570,8 @@ const AdminDashboardPage: React.FC = () => {
           <StatValue>{stats.pendingPayments}</StatValue>
         </StatCard>
         <StatCard 
-          onClick={() => setSelectedView('pending-withdrawals')}
+          className="stat-card"
+          onClick={() => handleSectionClick('pending-withdrawals')}
           style={pendingWithdrawalsInvestments.length > 0 ? { 
             border: '2px solid #f59e0b', 
             backgroundColor: '#fef3c7' 
@@ -1349,29 +1589,54 @@ const AdminDashboardPage: React.FC = () => {
             {pendingWithdrawalsInvestments.length}
           </StatValue>
         </StatCard>
-        <StatCard onClick={handleCompleteExpiredInvestments}>
+        <StatCard className="stat-card" onClick={handleCompleteExpiredInvestments}>
           <StatLabel>Complete Expired</StatLabel>
           <StatValue>🔄</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('manual-deposits')}>
+        <StatCard className="stat-card" onClick={() => handleSectionClick('manual-deposits')}>
           <StatLabel>Manual Deposits</StatLabel>
           <StatValue>{manualDeposits.filter((req) => req.status === 'pending').length}</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('user-deposits')}>
+        <StatCard className="stat-card" onClick={() => handleSectionClick('user-deposits')}>
           <StatLabel>User Deposits</StatLabel>
           <StatValue>{userDeposits.filter((req) => req.status === 'pending').length}</StatValue>
         </StatCard>
-        <StatCard onClick={() => setSelectedView('total-investments')}>
+        <StatCard className="stat-card" onClick={() => handleSectionClick('total-investments')}>
           <StatLabel>Active Investments</StatLabel>
           <StatValue>{totalInvestments.length}</StatValue>
         </StatCard>
-        <StatCard onClick={() => navigate('/admin/mpesa-bot')}>
+        <StatCard className="stat-card" onClick={() => navigate('/admin/mpesa-bot')}>
           <StatLabel>🤖 MPESA Bot</StatLabel>
           <StatValue>Manage</StatValue>
         </StatCard>
       </AdminGrid>
 
       {renderDetailView()}
+      
+      {/* Back to Overview Button - only show when a section is selected */}
+      {selectedView !== 'overview' && (
+        <BackToOverviewButton 
+          onClick={() => {
+            setSelectedView('overview');
+            console.log('🔄 Back to overview clicked');
+          }}
+        >
+          ← Back to Overview
+        </BackToOverviewButton>
+      )}
+      
+      {/* Scroll to Top Button - only show when scrolled down */}
+      {showScrollToTop && (
+        <ScrollToTopButton 
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            console.log('📜 Scroll to top clicked');
+          }}
+          title="Scroll to top"
+        >
+          ↑
+        </ScrollToTopButton>
+      )}
     </Container>
   );
 };
