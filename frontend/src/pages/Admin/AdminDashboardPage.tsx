@@ -1205,6 +1205,35 @@ const AdminDashboardPage: React.FC = () => {
     console.log('✅ Cleared notification badge');
   };
 
+  // Test function to simulate new completed investments
+  const testNotification = () => {
+    console.log('🧪 Testing notification system...');
+    // Set last view time to 24 hours ago to simulate new completed investments
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    setLastTotalInvestmentsView(yesterday);
+    console.log('⏰ Set last view time to:', yesterday.toISOString());
+    
+    // Manually trigger the check immediately
+    setTimeout(async () => {
+      try {
+        console.log('🔍 Manual check for completed investments...');
+        const completedInvestments = await investmentService.getCompletedInvestments(yesterday.toISOString());
+        const newCount = completedInvestments.length;
+        console.log('📊 Manual check found:', newCount, 'completed investments');
+        
+        if (newCount > 0) {
+          setNewCompletedInvestmentsCount(newCount);
+          addNotification('info', `🧪 TEST: ${newCount} completed investment${newCount > 1 ? 's' : ''} found!`);
+          console.log('🔴 Manual notification badge set to:', newCount);
+        } else {
+          console.log('📊 No completed investments found in test');
+        }
+      } catch (error) {
+        console.error('❌ Manual check failed:', error);
+      }
+    }, 1000);
+  };
+
   if (loading) {
     return (
       <Container>
@@ -1220,7 +1249,12 @@ const AdminDashboardPage: React.FC = () => {
       <Header>
         <Title>Admin Dashboard</Title>
         <Subtitle>Welcome, {user?.name || 'Admin'}</Subtitle>
-        <Button onClick={handleLogout} style={{ position: 'absolute', top: '20px', right: '20px' }}>Logout</Button>
+        <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '10px' }}>
+          <Button onClick={testNotification} style={{ background: '#ff9800', fontSize: '0.8rem' }}>
+            🧪 Test Notification
+          </Button>
+          <Button onClick={handleLogout}>Logout</Button>
+        </div>
       </Header>
 
       {error && (

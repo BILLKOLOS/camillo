@@ -419,14 +419,24 @@ export const getCompletedInvestments = async (req: Request, res: Response) => {
     const { since } = req.query;
     let query: any = { status: 'completed' };
     
+    console.log('🔍 getCompletedInvestments called with since:', since);
+    
     // If since parameter is provided, filter investments completed after that date
     if (since) {
       query.profitPaidAt = { $gte: new Date(since as string) };
+      console.log('📅 Filtering by profitPaidAt >=', new Date(since as string));
     }
+    
+    console.log('🔍 Query:', JSON.stringify(query));
     
     const investments = await Investment.find(query)
       .populate('userId', 'name phone')
       .sort({ profitPaidAt: -1 });
+    
+    console.log('✅ Found completed investments:', investments.length);
+    if (investments.length > 0) {
+      console.log('📅 Latest completed investment profitPaidAt:', investments[0].profitPaidAt);
+    }
     
     res.json({ data: { investments } });
   } catch (err) {

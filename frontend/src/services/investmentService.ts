@@ -143,7 +143,10 @@ export class InvestmentService {
 
   async getCompletedInvestments(since?: string): Promise<Investment[]> {
     const params = since ? `?since=${encodeURIComponent(since)}` : '';
-    const response = await this.apiCall(`/investments/admin/completed-investments${params}`);
+    const url = `/investments/admin/completed-investments${params}`;
+    console.log('🌐 Calling getCompletedInvestments:', url);
+    const response = await this.apiCall(url);
+    console.log('📊 getCompletedInvestments response:', response.data.investments.length, 'investments');
     return response.data.investments;
   }
 
