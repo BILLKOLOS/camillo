@@ -455,17 +455,25 @@ const AdminDashboardPage: React.FC = () => {
   const handleApprovePayment = async (investmentId: string) => {
     try {
       await investmentService.approvePayment(investmentId);
-      // Refresh pending payments
-      const pendingData = await investmentService.getCompletedPendingPayments();
+      
+      // Refresh all data
+      const [allInvestments, pendingData, statsData] = await Promise.all([
+        investmentService.getAllInvestments(),
+        investmentService.getCompletedPendingPayments(),
+        investmentService.getInvestmentStats()
+      ]);
+      
+      setInvestments(allInvestments);
       setPendingPayments(pendingData);
-      // Refresh stats
-      const statsData = await investmentService.getInvestmentStats();
       setStats(prev => ({
         ...prev,
         pendingPayments: statsData.pendingPayments,
       }));
+      
+      addNotification('success', 'Payment approved successfully! Investment marked as completed.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve payment');
+      addNotification('warning', 'Failed to approve payment');
     }
   };
 
@@ -562,15 +570,7 @@ const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const handleWithdrawInvestment = async (investmentId: string) => {
-    try {
-      await investmentService.updateInvestmentStatus(investmentId, 'completed');
-      // Refresh data
-      window.location.reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to withdraw investment');
-    }
-  };
+
 
   const handleApproveWithdrawal = async (transactionId: string) => {
     try {
@@ -773,9 +773,12 @@ const AdminDashboardPage: React.FC = () => {
                     </td>
                     <td>{formatDate(investment.createdAt)}</td>
                     <td>
-                      {investment.status === 'active' && (
-                        <Button onClick={() => handleWithdrawInvestment(investment.id)}>
-                          Withdraw for Trading
+                      {investment.status === 'active' && investment.paymentStatus === 'pending' && (
+                        <Button 
+                          onClick={() => handleApprovePayment(investment.id)}
+                          style={{ background: theme.colors.success }}
+                        >
+                          Mark as Paid
                         </Button>
                       )}
                     </td>
@@ -801,7 +804,7 @@ const AdminDashboardPage: React.FC = () => {
         return (
           <DetailCard>
             <h2>Pending Payments</h2>
-            <p>Completed investments waiting for payment approval</p>
+            <p>Active investments waiting for payment approval</p>
             <Table>
               <thead>
                 <tr>
@@ -810,7 +813,7 @@ const AdminDashboardPage: React.FC = () => {
                   <th>Investment Amount</th>
                   <th>Profit Amount</th>
                   <th>Total Due</th>
-                  <th>Completed Date</th>
+                  <th>Created Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -824,7 +827,7 @@ const AdminDashboardPage: React.FC = () => {
                       <td>{formatMoney(investment.amount)}</td>
                       <td>{formatMoney(investment.profitAmount)}</td>
                       <td>{formatMoney(investment.amount + investment.profitAmount)}</td>
-                      <td>{investment.profitPaidAt ? formatDate(investment.profitPaidAt) : 'N/A'}</td>
+                      <td>{formatDate(investment.createdAt)}</td>
                       <td>
                         <Button 
                           onClick={() => handleApprovePayment(investment.id)}

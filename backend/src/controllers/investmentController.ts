@@ -22,7 +22,7 @@ export const createInvestment = async (req: any, res: Response) => {
       userId, 
       amount, 
       status: 'active', 
-      paymentStatus: 'paid', 
+      paymentStatus: 'pending', // Start as pending, admin must approve
       profitAmount: Math.round(amount * 0.6), 
       tradingPeriod: testMode ? 1 : 24,
       expiryDate,
@@ -74,10 +74,10 @@ export const getInvestmentsByPhone = async (req: Request, res: Response) => {
 
 export const getCompletedPendingPayments = async (req: Request, res: Response) => {
   try {
-    const investments = await Investment.find({ status: 'completed', paymentStatus: 'pending' });
+    const investments = await Investment.find({ status: 'active', paymentStatus: 'pending' });
     res.json({ data: { investments } });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to get completed pending payments' });
+    res.status(500).json({ message: 'Failed to get pending payments' });
   }
 };
 
@@ -154,7 +154,11 @@ export const completeExpiredInvestments = async (req: Request, res: Response) =>
 export const approvePayment = async (req: Request, res: Response) => {
   try {
     const { investmentId } = req.params;
-    const investment = await Investment.findByIdAndUpdate(investmentId, { paymentStatus: 'paid', paymentApprovedAt: new Date() }, { new: true });
+    const investment = await Investment.findByIdAndUpdate(investmentId, { 
+      paymentStatus: 'paid', 
+      status: 'completed', // Mark as completed when payment is approved
+      paymentApprovedAt: new Date() 
+    }, { new: true });
     res.json({ data: { investment } });
   } catch (err) {
     res.status(500).json({ message: 'Failed to approve payment' });
@@ -246,7 +250,7 @@ export const getInvestmentStats = async (req: Request, res: Response) => {
     const totalInvestments = await Investment.countDocuments();
     const activeInvestments = await Investment.countDocuments({ status: 'active' });
     const totalProfit = await Investment.aggregate([{ $group: { _id: null, total: { $sum: '$profitAmount' } } }]);
-    const pendingPayments = await Investment.countDocuments({ paymentStatus: 'pending' });
+    const pendingPayments = await Investment.countDocuments({ status: 'active', paymentStatus: 'pending' });
     const expiredInvestments = await Investment.countDocuments({ expiryDate: { $lte: new Date() }, status: 'active' });
     res.json({ data: { stats: {
       totalInvestments,
@@ -262,9 +266,9 @@ export const getInvestmentStats = async (req: Request, res: Response) => {
 
 export const getAdminNotifications = async (req: Request, res: Response) => {
   try {
-    // Get completed investments with pending payments
+    // Get active investments with pending payments
     const pendingPayments = await Investment.find({ 
-      status: 'completed', 
+      status: 'active', 
       paymentStatus: 'pending' 
     }).populate('userId', 'name phone');
     
