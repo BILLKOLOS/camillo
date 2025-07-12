@@ -3,11 +3,16 @@ import { API_BASE_URL } from './config';
 
 export class AuthService {
   private token: string | null = null;
+  private currentUser: User | null = null;
+  private sessionCheckInProgress: boolean = false;
 
   constructor() {
     // On instantiation, try to load token from localStorage
     this.token = localStorage.getItem('token');
     console.log('AuthService initialized, token:', this.token ? 'exists' : 'null');
+    
+    // Try to recover session on initialization
+    this.recoverSession();
   }
 
   getToken(): string | null {
@@ -17,6 +22,39 @@ export class AuthService {
   isAuthenticated(): boolean {
     // A user is authenticated if there is a token
     return !!this.token;
+  }
+
+  // Enhanced session recovery method
+  private async recoverSession(): Promise<void> {
+    if (this.sessionCheckInProgress || !this.token) {
+      return;
+    }
+
+    this.sessionCheckInProgress = true;
+    
+    try {
+      console.log('🔄 Attempting to recover session...');
+      const user = await this.getCurrentUser();
+      if (user) {
+        this.currentUser = user;
+        console.log('✅ Session recovered successfully for user:', user.name);
+      } else {
+        console.log('❌ Session recovery failed, clearing invalid token');
+        this.logout();
+      }
+    } catch (error) {
+      console.error('❌ Session recovery error:', error);
+      this.logout();
+    } finally {
+      this.sessionCheckInProgress = false;
+    }
+  }
+
+  // Method to force session recovery (useful after page reloads)
+  async forceSessionRecovery(): Promise<User | null> {
+    console.log('🔄 Force session recovery initiated...');
+    await this.recoverSession();
+    return this.currentUser;
   }
 
   async login(email: string, password: string): Promise<User> {
@@ -40,6 +78,7 @@ export class AuthService {
     console.log('Login response data:', data);
     
     this.token = data.data.token;
+    this.currentUser = data.data.user;
     localStorage.setItem('token', this.token as string);
     console.log('Token stored:', this.token ? 'yes' : 'no');
 
@@ -58,7 +97,9 @@ export class AuthService {
 
   logout(): void {
     this.token = null;
+    this.currentUser = null;
     localStorage.removeItem('token');
+    console.log('🚪 User logged out, session cleared');
   }
 
   async getCurrentUser(): Promise<User | null> {
@@ -67,6 +108,12 @@ export class AuthService {
     if (!this.token) {
       console.log('No token found, returning null');
       return Promise.resolve(null);
+    }
+
+    // If we already have a cached user, return it immediately
+    if (this.currentUser) {
+      console.log('Returning cached user:', this.currentUser.name);
+      return Promise.resolve(this.currentUser);
     }
 
     try {
@@ -87,12 +134,27 @@ export class AuthService {
 
       const data = await response.json();
       console.log('API response data:', data);
+      
+      // Cache the user data
+      this.currentUser = data.data.user;
       return data.data.user;
     } catch (error) {
       console.error('getCurrentUser error:', error);
       this.logout();
       return null;
     }
+  }
+
+  // Method to clear cached user (useful when user data might have changed)
+  clearCachedUser(): void {
+    this.currentUser = null;
+    console.log('🧹 Cached user cleared');
+  }
+
+  // Enhanced method to refresh user data
+  async refreshUserData(): Promise<User | null> {
+    this.clearCachedUser();
+    return await this.getCurrentUser();
   }
 
   // The following methods are from the mock service.
